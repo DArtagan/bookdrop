@@ -32,7 +32,7 @@ def kind(path: Path) -> str:
             with zipfile.ZipFile(path) as z:
                 if z.read("mimetype").strip() == b"application/epub+zip":
                     return "epub"
-        except (zipfile.BadZipFile, KeyError):
+        except zipfile.BadZipFile, KeyError:
             pass
         raise Refused("This is a zip file but not an EPUB.")
     try:
