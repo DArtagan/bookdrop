@@ -42,26 +42,26 @@ The encrypted download is in the primary checkout's
 `captures/fulfilled/`, and the `.acsm` beside it in `captures/acsm/`. That
 `.acsm` is spent; a second fulfilment of it was not tried.
 
-## The work
+## Where it stands
 
-- Build libgourou in a builder stage at a pinned upstream tag, and copy the
-  three tools and their libraries into the runtime image. CI's image job then
-  proves the build on every pull request.
-- The device key is mounted read-only. libgourou expects it in a writable
-  `.adept` directory, so copy it to a scratch path at startup, if it turns
-  out to write there.
-- A minimal upload form: `POST` an `.acsm` or an `.epub`. An `.acsm` is fulfilled
-  and stripped at once (see the expiry in the design's *Input*).
-- Encryption check after stripping: an EPUB carrying a `META-INF/rights.xml`,
-  or an `encryption.xml` listing anything other than font obfuscation, is
-  refused. The same check refuses an uploaded EPUB that arrives encrypted.
-- Tests put stand-in `acsmdownloader` and `adept_remove` scripts on `PATH`, and
-  use synthetic EPUBs built in the test, with and without the DRM markers.
+Built on the `adept` branch, 2026-11-03: libgourou in the image from nixpkgs,
+`prepare()` in `src/bookdrop/adept.py`, and a bare form posting to `/drop`.
+
+- **libgourou comes from nixpkgs, not a source build.** The forge that hosts it
+  and its uPDFParser was unreachable that day, and the gitdab mirror carries
+  libgourou only. The Dockerfile says why; the closure adds 70 MiB.
+- **libgourou writes to the key.** `fetchLicenseServiceCertificate` appends to
+  `activation.xml` the first time a book comes through a licence service it has
+  not met; Kobo's is now cached in the deployed key. Each run works on a scratch
+  copy, so the read-only mount never fails it, and a test holds that.
+- **Measured in the image**, the key mounted read-only: the captured encrypted
+  EPUB, and the first purchase's `.acsm` fulfilled a second time against the
+  same device, both came out of `/drop` with all 41 entries identical in
+  content to the desktop's stripped copy. The zips differ in packing only.
 
 ## Done when
 
-- The captured encrypted download, run through the image's `adept_remove`,
-  comes out byte-identical to the desktop's stripped copy, or failing that
-  opens in Calibre and in KOReader.
-- A fresh Kobo `.acsm` uploaded through the deployed form produces a DRM-free
-  EPUB under `/data`, and the library is unchanged.
+The image check is met, above. What remains:
+
+- A Kobo `.acsm` uploaded from the phone through the deployed form produces a
+  DRM-free EPUB under `/data`, and the library is unchanged.

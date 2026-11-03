@@ -1,6 +1,8 @@
-# An example deployment. Set BOOKS_ROOT to the library Stump reads.
+# An example deployment. Set BOOKS_ROOT to the library Stump reads, and
+# ADEPT_DIR to the device key adept_activate wrote (see docs/design.md); a
+# DRM-free EPUB needs no key.
 #
-#   BOOKS_ROOT=/srv/books docker compose up -d
+#   BOOKS_ROOT=/srv/books ADEPT_DIR=~/.config/bookdrop/adept docker compose up -d
 #
 # This runs in dry run: it prepares books and changes nothing in the library.
 services:
@@ -14,6 +16,7 @@ services:
       BOOKDROP_DRY_RUN: "true"
     volumes:
       - ${BOOKS_ROOT:?set BOOKS_ROOT to the books library}:/books:ro
+      - ${ADEPT_DIR:-./adept}:/adept:ro
       - data:/data
     ports:
       - "8000:8000"

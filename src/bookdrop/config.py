@@ -14,3 +14,5 @@ class Settings(BaseSettings):
     books_root: Path = Path("/books")
     # Uploads awaiting confirmation, and the ledger.
     data_dir: Path = Path("/data")
+    # The Adobe device key: device.xml, activation.xml and devicesalt.
+    adept_dir: Path = Path("/adept")
