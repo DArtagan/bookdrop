@@ -26,7 +26,9 @@ Made by Will on 2026-11-03, recorded so they are not relitigated:
 - **Adobe DRM, not Readium LCP.** See *What it does not accept*.
 - **A confirmation screen**, not automatic filing. A store's metadata is a
   starting point; series and index in particular are often missing.
-- **A dedicated Adobe ID** for bookdrop, used by nothing else.
+- **A dedicated account** for bookdrop's Adobe DRM identity, used by nothing
+  else. Will asked for an Adobe ID; see *Adobe identity* for why it is a
+  ByteBooks ID.
 
 ## Input
 
@@ -60,12 +62,19 @@ fresh `.acsm` from the account's library once one has lapsed was not checked.
 ADEPT protocol without Adobe Digital Editions: `adept_activate` registers a
 device against an Adobe ID, `acsmdownloader` fulfils, `adept_remove` strips.
 
-`adept_activate` runs **once, on a desktop**, against the dedicated Adobe ID.
-Its output, `device.xml`, `activation.xml` and `devicesalt`, is the device key.
+Adobe handed its ebook platform to Wipro in July 2025, and sign-in for a new
+device is now a **ByteBooks ID** (<https://dtsbytebooks.com/register>), not an
+Adobe ID. A freshly made Adobe ID fails activation with
+`E_AUTH_FAILED … User does not exist`; libgourou's README has said the same
+since September 2026.
+
+`adept_activate` runs **once, on a desktop**, against the dedicated ByteBooks
+ID. Its output, `device.xml`, `activation.xml` and `devicesalt`, is the device
+key.
 The deployment holds it as a secret mounted into the container, so:
 
-- the Adobe password never reaches the server, and
-- a restart does not activate a new device. Adobe limits activations per
+- the account's password never reaches the server, and
+- a restart does not activate a new device. Activations are limited per
   account, and the device key is what the books are fulfilled to.
 
 The device key is backed up with the deployment's secrets. Losing it means
@@ -75,7 +84,8 @@ unaffected, as they no longer carry DRM.
 ## Metadata
 
 Read from the book's OPF. With an ISBN, gaps are filled from Open Library, then
-Google Books. The confirmation screen requires title, author, and series with
+Google Books. A Kobo EPUB may carry its ISBN only as `dc:source`, the print
+edition it was made from, with `dc:identifier` a UUID; read both. The confirmation screen requires title, author, and series with
 its index where there is one, and offers publisher, ISBN, date, description,
 language and cover. An author alias table maps variant spellings to one
 canonical name.
@@ -121,4 +131,4 @@ The internal network is the only way in; the tailnet carries a phone to it from
 anywhere. Phase two makes bookdrop an installable PWA with a Web Share Target,
 so sharing a downloaded `.acsm` lands on the confirmation screen. Share targets
 need a secure context, so this depends on the ingress serving a certificate the
-phone trusts; that was not checked.
+phone trusts. The deployment's is from Let's Encrypt.
