@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}bookdrop{% endblock %}</title>
+<style>
+  body { font: 17px/1.45 system-ui, sans-serif; margin: 0 auto; max-width: 40rem; padding: 1rem; }
+  h1 { font-size: 1.4rem; margin: .5rem 0 1rem; }
+  a { color: #0645ad; }
+  .note { background: #f3f3f3; border-radius: .5rem; padding: .6rem .8rem; }
+  .warn { background: #fff4d6; border-radius: .5rem; padding: .6rem .8rem; }
+  .muted { color: #666; font-size: .9rem; }
+  label { display: block; font-weight: 600; margin-top: .9rem; }
+  label small { color: #666; font-weight: normal; }
+  input[type=text], textarea { box-sizing: border-box; font: inherit; padding: .5rem; width: 100%; }
+  textarea { min-height: 6rem; }
+  button { font: inherit; font-weight: 600; margin-top: 1rem; min-height: 3rem; padding: .5rem 1.2rem; }
+  button.primary { background: #0645ad; border: 0; border-radius: .5rem; color: #fff; }
+  .wide { display: block; width: 100%; }
+  input[type=file] { box-sizing: border-box; font: inherit; padding: .8rem 0; }
+  .row { display: flex; gap: .6rem; }
+  .row > * { flex: 1; }
+  .cover { float: right; margin: 0 0 .5rem 1rem; max-width: 7rem; }
+  code { word-break: break-all; }
+  ul.drops { list-style: none; padding: 0; }
+  ul.drops li { border-top: 1px solid #ddd; padding: .6rem 0; }
+</style>
+<body>
+{% block body %}{% endblock %}
+</body>
+</html>

@@ -85,12 +85,23 @@ unaffected, as they no longer carry DRM.
 
 ## Metadata
 
-Read from the book's OPF. With an ISBN, gaps are filled from Open Library, then
-Google Books. A Kobo EPUB may carry its ISBN only as `dc:source`, the print
-edition it was made from, with `dc:identifier` a UUID; read both. The confirmation screen requires title, author, and series with
-its index where there is one, and offers publisher, ISBN, date, description,
-language and cover. An author alias table maps variant spellings to one
-canonical name.
+Read from the book's OPF, EPUB 2 or 3, including Calibre's series. A Kobo EPUB
+may carry its ISBN only as `dc:source`, the print edition it was made from, with
+`dc:identifier` a UUID; both are read, and an ISBN counts only when its check
+digit holds.
+
+With an ISBN, Open Library fills the fields the book leaves empty, never
+overriding one it has. It needs no key and answered in two to four seconds on
+2026-11-03, so the lookup runs once, at upload, with a timeout that turns a slow
+answer into gaps. Google Books is not used: without a key it answered
+`429 Quota exceeded … Queries per day`, as every keyless caller shares one
+quota. A key would make it usable.
+
+The confirmation screen shows each field with where its value came from, the
+book, Open Library, the alias table or the person, and every field is editable.
+An author alias table, `authors.toml` on the data volume, maps variant spellings
+to one canonical name and is read on each request, so it changes without a
+release.
 
 The confirmed values are written into the EPUB itself, since Stump reads them
 from there, and into a `metadata.opf` beside it.
@@ -109,9 +120,14 @@ and `cover.jpg` beside nearly every book, and series one level deeper
 (`Frank Herbert/Dune/Dune Messiah/`). A colon in a title is written ` - `
 (`Chapterhouse - Dune`).
 
+Several authors are joined with ` & `, as Calibre joins them; the library's
+sidecars are Calibre's, and its folders show no convention of their own.
+
 Path components are folded to Latin-1 (`’` to `'`, `–` to `-`, `…` to `...`):
 the share the library lives on fails any filename character above U+00FF with
-`EIO`. The true title stays in the metadata. A target that already exists is
+`EIO`. Characters Windows forbids become `_`, and a trailing dot or space is
+dropped, as SMB clients cannot round-trip one. The true title stays in the
+metadata. A target that already exists is
 shown on the confirmation screen, never overwritten.
 
 After filing, bookdrop starts a scan through Stump's API, authenticated with a

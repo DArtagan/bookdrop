@@ -32,18 +32,27 @@ def make_epub(
     rights: bool = False,
     algorithms: tuple = (),
     title: str | None = "A Synthetic Book",
+    metadata: str | None = None,
+    manifest: str = "",
+    files: dict[str, bytes] | None = None,
+    version: str = "3.0",
 ) -> Path:
-    dc_title = f"<dc:title>{title}</dc:title>" if title else ""
+    """An EPUB whose OPF metadata is title alone, or the given XML."""
+    if metadata is None:
+        metadata = f"<dc:title>{title}</dc:title>" if title else ""
     with zipfile.ZipFile(path, "w") as z:
         z.writestr(_entry("mimetype"), "application/epub+zip")
         z.writestr(_entry("META-INF/container.xml"), CONTAINER)
         z.writestr(
             _entry("OEBPS/package.opf"),
-            "<package xmlns='http://www.idpf.org/2007/opf' version='3.0'>"
+            f"<package xmlns='http://www.idpf.org/2007/opf' version='{version}' "
+            "xmlns:opf='http://www.idpf.org/2007/opf'>"
             "<metadata xmlns:dc='http://purl.org/dc/elements/1.1/'>"
-            f"{dc_title}</metadata></package>",
+            f"{metadata}</metadata><manifest>{manifest}</manifest></package>",
         )
         z.writestr(_entry("OEBPS/chapter.xhtml"), "<html><body>text</body></html>")
+        for name, content in (files or {}).items():
+            z.writestr(_entry(name), content)
         if rights:
             z.writestr(_entry("META-INF/rights.xml"), "<rights/>")
         if algorithms:

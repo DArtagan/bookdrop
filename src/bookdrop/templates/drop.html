@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.title or "Untitled" }} · bookdrop{% endblock %}
+{% macro field(name, label, value, multiline=False) -%}
+  <label for="{{ name }}">{{ label }}
+    {%- if drop.sources.get(name) %} <small>from {{ drop.sources[name] }}</small>{% endif %}</label>
+  {% if multiline %}<textarea id="{{ name }}" name="{{ name }}">{{ value }}</textarea>
+  {% else %}<input id="{{ name }}" type="text" name="{{ name }}" value="{{ value }}">{% endif %}
+{%- endmacro %}
+{% block body %}
+<p><a href="/">← bookdrop</a></p>
+{% if has_cover %}<img class="cover" src="/drops/{{ drop.id }}/cover" alt="">{% endif %}
+<h1>{{ meta.title or "Untitled" }}</h1>
+<p class="note">{{ drop.done }}</p>
+{% if alias_error %}<p class="warn">authors.toml could not be read, so no aliases apply: {{ alias_error }}</p>{% endif %}
+
+<p>Files to <code>{{ destination }}</code></p>
+{% if exists %}<p class="warn">A book is already at this path. It will not be overwritten.</p>{% endif %}
+
+{% if drop.confirmed %}
+<p class="note">Confirmed. bookdrop does not file books yet, so nothing has been written to the library.</p>
+{% endif %}
+
+<form method="post" action="/drops/{{ drop.id }}">
+  {{ field("title", "Title", meta.title) }}
+  {{ field("authors", "Authors", meta.authors | join(" & ")) }}
+  <div class="row">
+    <div>{{ field("series", "Series", meta.series) }}</div>
+    <div>{{ field("series_index", "Number", meta.series_index) }}</div>
+  </div>
+  {{ field("isbn", "ISBN", meta.isbn) }}
+  {{ field("publisher", "Publisher", meta.publisher) }}
+  <div class="row">
+    <div>{{ field("date", "Published", meta.date) }}</div>
+    <div>{{ field("language", "Language", meta.language) }}</div>
+  </div>
+  {{ field("description", "Description", meta.description, multiline=True) }}
+  <div class="row">
+    <button name="action" value="update">Update path</button>
+    <button class="primary" name="action" value="confirm">Confirm</button>
+  </div>
+</form>
+<p class="muted">Several authors are separated by &amp;. Uploaded as {{ drop.uploaded_as }}.</p>
+{% endblock %}

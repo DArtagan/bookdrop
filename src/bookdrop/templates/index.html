@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>bookdrop <span class="muted">{{ version }}</span></h1>
+{% if dry_run %}<p class="note">Dry run: books are prepared and nothing in the library is changed.</p>{% endif %}
+
+<form method="post" action="/drop" enctype="multipart/form-data"
+      onsubmit="const b = this.querySelector('button'); b.disabled = true; b.textContent = 'Working… a store download takes a few seconds';">
+  {# No accept attribute: iOS greys out every file whose extension it has no
+     type for, .acsm among them. /drop judges by content. #}
+  <label for="file">An .acsm, EPUB or PDF</label>
+  <input id="file" class="wide" type="file" name="file" required>
+  <button class="primary wide">Drop</button>
+</form>
+
+{% if drops %}
+<h2>Dropped</h2>
+<ul class="drops">
+  {% for drop in drops %}
+  <li><a href="/drops/{{ drop.id }}">{{ drop.metadata.title or drop.uploaded_as }}</a>
+    {%- if drop.metadata.authors %} <span class="muted">by {{ drop.metadata.authors | join(" & ") }}</span>{% endif %}<br>
+    <span class="muted">{{ "Confirmed" if drop.confirmed else "Awaiting confirmation" }} · dropped {{ drop.created[:16] | replace("T", " ") }} UTC</span></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

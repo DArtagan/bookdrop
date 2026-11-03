@@ -7,20 +7,19 @@
 > screen: metadata read from the book, gaps filled by ISBN lookup, every field
 > editable, and the destination path shown before anything is filed.
 
-## The work
+## Where it stands
 
-- An upload page that works one-handed on a phone: one file picker, accepting
-  `.acsm` and `.epub`, progress while fulfilment runs.
-- Read title, author, series, index, ISBN, publisher, date, description,
-  language and cover from the OPF. Calibre writes series as
-  `calibre:series` and `calibre:series_index` meta elements; EPUB 3 uses
-  `belongs-to-collection`. Read both.
-- Fill gaps by ISBN from Open Library, then Google Books, keyless. Lookup
-  failure is not an error: the screen shows what is known.
-- The author alias table: a TOML file in `/data`, editable without a release.
-- The screen shows the computed destination, Latin-1 folded, and says when it
-  already exists.
-- Uploads awaiting confirmation live under `/data` and survive a restart.
+Built on the `confirm` branch, 2026-11-03. A drop now leads to its confirmation
+page: metadata read from the book, gaps filled from Open Library, every field
+editable with where its value came from, the cover, the destination and a
+warning when it exists. Drops live under `/data/drops/` and are listed on the
+upload page. Confirming records the decision and files nothing; `filing` builds
+the writer.
+
+Measured in the image the same day: the first purchase's `.acsm` reached its
+confirmation page in 3.8 s, fulfilment and lookup included, with every field
+right and the description from Open Library; an edit to the series moved the
+destination. The design's *Metadata* and *Layout* hold what is now true.
 
 ## What a Kobo EPUB carries
 
@@ -31,8 +30,6 @@ creator, publisher, `en-US` and `dcterms:date` as a bare year. No ISBN in
 ebook's own ISBN only in the cover image's filename. The book is standalone, so
 whether Kobo writes series metadata is still unknown: check the first series
 purchase. The cover is a manifest item named by the `cover` meta.
-
-The lookup should try `dc:source`'s ISBN when `dc:identifier` has none.
 
 ## Done when
 
