@@ -1,3 +1,4 @@
+from conftest import make_epub
 from fastapi.testclient import TestClient
 
 from bookdrop.config import Settings
@@ -24,3 +25,27 @@ def test_healthz_reports_mode():
 def test_index_states_dry_run():
     client = TestClient(create_app(Settings(dry_run=True)))
     assert "nothing in the library is changed" in client.get("/").text
+
+
+def test_drop_prepares_a_drm_free_epub(tmp_path):
+    settings = Settings(data_dir=tmp_path / "data", adept_dir=tmp_path / "adept")
+    client = TestClient(create_app(settings))
+    epub = make_epub(tmp_path / "book.epub").read_bytes()
+
+    response = client.post("/drop", files={"file": ("book.epub", epub)})
+
+    assert response.status_code == 200
+    assert "DRM-free EPUB" in response.text
+    (drop,) = (tmp_path / "data" / "drops").iterdir()
+    assert [p.name for p in drop.iterdir()] == ["book.epub"]
+
+
+def test_drop_refuses_and_keeps_nothing(tmp_path):
+    settings = Settings(data_dir=tmp_path / "data", adept_dir=tmp_path / "adept")
+    client = TestClient(create_app(settings))
+
+    response = client.post("/drop", files={"file": ("notes.txt", b"plain text")})
+
+    assert response.status_code == 422
+    assert "Only an .acsm, an EPUB or a PDF" in response.text
+    assert list((tmp_path / "data" / "drops").iterdir()) == []
