@@ -9,7 +9,7 @@ and the layout. Read the sections a spec names before changing behaviour.
 
 ## Development environment
 
-[devenv](https://devenv.sh/) provides Python 3.13, uv, libgourou, `gh`, `jq` and
+[devenv](https://devenv.sh/) provides Python 3.15, uv, libgourou, `gh`, `jq` and
 `skopeo`. `direnv` loads it on `cd`; otherwise `devenv shell`.
 
 ```bash

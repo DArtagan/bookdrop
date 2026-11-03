@@ -17,7 +17,7 @@
 
   languages.python = {
     enable = true;
-    package = pkgs.python313;
+    package = pkgs.python315;
     venv.enable = true;
     uv = {
       enable = true;
