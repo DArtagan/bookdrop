@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 KEY_FILES = ("device.xml", "activation.xml", "devicesalt")
@@ -19,6 +20,13 @@ TOOL_TIMEOUT = 300
 
 class Refused(Exception):
     """An upload bookdrop will not take, with the reason a person reads."""
+
+
+@dataclass(frozen=True)
+class Prepared:
+    book: Path
+    # What was done to reach a DRM-free book, said to the person who dropped it.
+    done: str
 
 
 def kind(path: Path) -> str:
@@ -62,10 +70,11 @@ def encrypted(path: Path, file_kind: str) -> bool:
     return bool(algorithms - FONT_OBFUSCATION)
 
 
-def prepare(upload: Path, out_dir: Path, adept_dir: Path) -> Path:
+def prepare(upload: Path, out_dir: Path, adept_dir: Path) -> Prepared:
     """Turn an upload into a DRM-free book in out_dir, or raise Refused."""
     upload_kind = kind(upload)
-    if upload_kind == "acsm":
+    fulfilled_from_store = upload_kind == "acsm"
+    if fulfilled_from_store:
         fulfilled = out_dir / "fulfilled"
         _run(adept_dir, "acsmdownloader", "-o", str(fulfilled), str(upload))
         if not fulfilled.exists():
@@ -80,9 +89,19 @@ def prepare(upload: Path, out_dir: Path, adept_dir: Path) -> Path:
         _run(adept_dir, "adept_remove", "-o", str(book), str(source))
         if encrypted(book, book_kind):
             raise Refused("The DRM could not be removed from this book.")
+        done = (
+            "Downloaded from the store, DRM removed."
+            if fulfilled_from_store
+            else "DRM removed."
+        )
     else:
         shutil.copyfile(source, book)
-    return book
+        done = (
+            "Downloaded from the store, which sent it DRM-free."
+            if fulfilled_from_store
+            else "It arrived DRM-free."
+        )
+    return Prepared(book, done)
 
 
 def _run(adept_dir: Path, tool: str, *args: str) -> None:

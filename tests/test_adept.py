@@ -65,10 +65,22 @@ def test_acsm_is_fulfilled_and_stripped(
     acsm = tmp_path / "URLLink.acsm"
     acsm.write_text(ACSM)
 
-    book = prepare(acsm, out_dir, adept_dir)
+    prepared = prepare(acsm, out_dir, adept_dir)
 
-    assert book == out_dir / "book.epub"
-    assert not encrypted(book, "epub")
+    assert prepared.book == out_dir / "book.epub"
+    assert not encrypted(prepared.book, "epub")
+    assert prepared.done == "Downloaded from the store, DRM removed."
+
+
+def test_acsm_the_store_sent_drm_free(tmp_path, out_dir, tools, adept_dir, monkeypatch):
+    monkeypatch.setenv("STUB_FULFILLED", str(make_epub(tmp_path / "free.epub")))
+    monkeypatch.delenv("STUB_STRIPPED", raising=False)
+    acsm = tmp_path / "URLLink.acsm"
+    acsm.write_text(ACSM)
+
+    prepared = prepare(acsm, out_dir, adept_dir)
+
+    assert prepared.done == "Downloaded from the store, which sent it DRM-free."
 
 
 def test_read_only_key_is_never_written(
@@ -109,14 +121,16 @@ def test_tool_failure_is_refused_with_its_message(
 
 def test_drm_free_epub_needs_no_tools(tmp_path, out_dir, adept_dir, monkeypatch):
     monkeypatch.setenv("PATH", str(tmp_path / "nothing-here"))
-    book = prepare(make_epub(tmp_path / "upload"), out_dir, adept_dir)
-    assert book == out_dir / "book.epub"
-    assert not encrypted(book, "epub")
+    prepared = prepare(make_epub(tmp_path / "upload"), out_dir, adept_dir)
+    assert prepared.book == out_dir / "book.epub"
+    assert not encrypted(prepared.book, "epub")
+    assert prepared.done == "It arrived DRM-free."
 
 
 def test_encrypted_epub_upload_is_stripped(
     tmp_path, out_dir, tools, adept_dir, monkeypatch
 ):
     monkeypatch.setenv("STUB_STRIPPED", str(make_epub(tmp_path / "clean.epub")))
-    book = prepare(drm_epub(tmp_path / "upload"), out_dir, adept_dir)
-    assert not encrypted(book, "epub")
+    prepared = prepare(drm_epub(tmp_path / "upload"), out_dir, adept_dir)
+    assert not encrypted(prepared.book, "epub")
+    assert prepared.done == "DRM removed."
