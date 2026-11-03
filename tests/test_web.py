@@ -49,3 +49,9 @@ def test_drop_refuses_and_keeps_nothing(tmp_path):
     assert response.status_code == 422
     assert "Only an .acsm, an EPUB or a PDF" in response.text
     assert list((tmp_path / "data" / "drops").iterdir()) == []
+
+
+def test_file_picker_filters_nothing():
+    # iOS refuses .acsm files from a picker that names accepted types.
+    client = TestClient(create_app(Settings(dry_run=True)))
+    assert "accept=" not in client.get("/").text
