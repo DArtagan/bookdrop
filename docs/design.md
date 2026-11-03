@@ -44,8 +44,10 @@ converting it to EPUB waits until a purchase needs it.
 
 An `.acsm` is not the book but a one-time claim on it. It carries an expiry,
 hours after the purchase, and the first Adobe identity to fulfil it owns the
-download. bookdrop fulfils one as soon as it arrives. Whether Kobo serves a
-fresh `.acsm` from the account's library once one has lapsed was not checked.
+download. bookdrop fulfils one as soon as it arrives. Until it expires, the same
+`.acsm` can be fulfilled again against the same device: Kobo's served the book
+a second and third time on 2026-11-03. Whether Kobo serves a fresh `.acsm` from
+the account's library once one has lapsed was not checked.
 
 ### What it does not accept
 

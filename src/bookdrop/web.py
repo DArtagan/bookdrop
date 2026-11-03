@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 
 from bookdrop.adept import Refused, prepare
 from bookdrop.config import Settings
+from bookdrop.metadata import title
 
 
 def _page(body: str) -> str:
@@ -50,22 +51,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with upload.open("wb") as out:
             shutil.copyfileobj(file.file, out)
         try:
-            book = prepare(upload, drop_dir, settings.adept_dir)
+            prepared = prepare(upload, drop_dir, settings.adept_dir)
         except Refused as refused:
             shutil.rmtree(drop_dir)
             return HTMLResponse(
                 _page(f"<h1>Not taken</h1><p>{escape(str(refused))}</p>"),
                 status_code=422,
             )
+        book = prepared.book
         for leftover in drop_dir.iterdir():
             if leftover != book:
                 leftover.unlink()
+        name = title(book) or file.filename or "The book"
         size = book.stat().st_size / 1_000_000
-        name = escape(file.filename or "upload")
         return HTMLResponse(
             _page(
-                f"<h1>Ready</h1><p>{name} is a DRM-free "
+                f"<h1>Ready</h1><p><b>{escape(name)}</b>: "
                 f"{book.suffix[1:].upper()}, {size:.1f} MB.</p>"
+                f"<p>{escape(prepared.done)}</p>"
             )
         )
 

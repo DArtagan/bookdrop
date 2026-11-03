@@ -20,9 +20,29 @@ def _entry(name: str) -> zipfile.ZipInfo:
     return zipfile.ZipInfo(name, date_time=(2020, 1, 1, 0, 0, 0))
 
 
-def make_epub(path: Path, *, rights: bool = False, algorithms: tuple = ()) -> Path:
+CONTAINER = (
+    "<container xmlns='urn:oasis:names:tc:opendocument:xmlns:container'>"
+    "<rootfiles><rootfile full-path='OEBPS/package.opf'/></rootfiles></container>"
+)
+
+
+def make_epub(
+    path: Path,
+    *,
+    rights: bool = False,
+    algorithms: tuple = (),
+    title: str | None = "A Synthetic Book",
+) -> Path:
+    dc_title = f"<dc:title>{title}</dc:title>" if title else ""
     with zipfile.ZipFile(path, "w") as z:
         z.writestr(_entry("mimetype"), "application/epub+zip")
+        z.writestr(_entry("META-INF/container.xml"), CONTAINER)
+        z.writestr(
+            _entry("OEBPS/package.opf"),
+            "<package xmlns='http://www.idpf.org/2007/opf' version='3.0'>"
+            "<metadata xmlns:dc='http://purl.org/dc/elements/1.1/'>"
+            f"{dc_title}</metadata></package>",
+        )
         z.writestr(_entry("OEBPS/chapter.xhtml"), "<html><body>text</body></html>")
         if rights:
             z.writestr(_entry("META-INF/rights.xml"), "<rights/>")
