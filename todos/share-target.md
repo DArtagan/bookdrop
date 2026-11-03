@@ -11,9 +11,8 @@
 - A web app manifest with `share_target` (`method: POST`,
   `enctype: multipart/form-data`, `files` accepting the two types), and the
   service worker installability needs.
-- Check first that the phone trusts the ingress's certificate. Share targets and
-  service workers need a secure context, and that was not checked on
-  2026-11-03.
+- Share targets and service workers need a secure context. The deployment's
+  certificate is from Let's Encrypt (issued 2026-11-03), which phones trust.
 - Web Share Target is supported by Chrome on Android, not by Safari on iOS, as
   far as was known on 2026-11-03 (unverified). On iOS, a Shortcut that posts the
   file is the fallback.

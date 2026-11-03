@@ -15,21 +15,32 @@
   `acsmdownloader`, `adept_remove` and `adept_loan_mgt`, and devenv provides
   them. Its build needs pugixml, updfparser, libzip, OpenSSL and curl.
 - **`adept_activate -O <dir>`** writes the device key into a directory that
-  must not already exist; `-u` takes the Adobe ID's email and prompts for the
-  password when `-p` is absent.
+  must not already exist, and leaves it behind even when activation fails;
+  `-u` takes the ByteBooks ID's email and prompts for the password when `-p` is
+  absent.
 - **A Kobo `.acsm`** is a `fulfillmentToken` XML document pointing at
   `acs4.kobo.com`, carrying the title, creator, publisher, format and an
   `expiration` about six hours after purchase.
 
 ## The first book
 
-Will's first Kobo purchase, an EPUB, arrived as an `.acsm`
-expiring 2026-11-03T11:27Z, before bookdrop could be deployed. The plan is to
-activate the dedicated Adobe ID on the desktop and fulfil it there with
-`acsmdownloader` against that same device key, so the book belongs to
-bookdrop's identity from the start. The encrypted download, kept under
-`captures/` on the desktop, is the real input for checking `adept_remove` in
-the image. Update this section with what happened.
+Will's first Kobo purchase, an EPUB, arrived as an `.acsm` expiring
+2026-11-03T11:27Z, before bookdrop could fulfil anything. On 2026-11-03 it was
+fulfilled on the desktop, against the device key the deployment holds, with
+nixpkgs' libgourou 0.8.9:
+
+- `acsmdownloader -D <key dir> -O <dir> <file>.acsm` wrote `<Title>.epub`,
+  1.3 MB, named from the `.acsm`'s title.
+- It carried `META-INF/rights.xml` and an `encryption.xml` listing 38 entries,
+  all `http://www.w3.org/2001/04/xmlenc#aes128-cbc`.
+- `adept_remove -D <key dir> <file>`, which strips in place unless given `-o`
+  or `-O`, left neither file.
+- Calibre converted the result to 85,913 words of text with no control
+  characters, so it was decrypted rather than merely unmarked.
+
+The encrypted download is in the primary checkout's
+`captures/fulfilled/`, and the `.acsm` beside it in `captures/acsm/`. That
+`.acsm` is spent; a second fulfilment of it was not tried.
 
 ## The work
 
@@ -50,6 +61,7 @@ the image. Update this section with what happened.
 ## Done when
 
 - The captured encrypted download, run through the image's `adept_remove`,
+  comes out byte-identical to the desktop's stripped copy, or failing that
   opens in Calibre and in KOReader.
 - A fresh Kobo `.acsm` uploaded through the deployed form produces a DRM-free
   EPUB under `/data`, and the library is unchanged.

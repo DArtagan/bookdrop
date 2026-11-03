@@ -22,10 +22,17 @@
   already exists.
 - Uploads awaiting confirmation live under `/data` and survive a restart.
 
-## Not yet checked
+## What a Kobo EPUB carries
 
-What metadata a Kobo EPUB actually carries, series in particular. Check it
-against the first Kobo purchase (see `adept.md`) before deciding how much the lookup has to supply.
+Measured on the first purchase, 2026-11-03: an EPUB 3 OPF with title, one
+creator, publisher, `en-US` and `dcterms:date` as a bare year. No ISBN in
+`dc:identifier`, which is a UUID; the print ISBN is in
+`dc:source` (`urn:isbn:…`) with an ONIX identifier-type refinement, and the
+ebook's own ISBN only in the cover image's filename. The book is standalone, so
+whether Kobo writes series metadata is still unknown: check the first series
+purchase. The cover is a manifest item named by the `cover` meta.
+
+The lookup should try `dc:source`'s ISBN when `dc:identifier` has none.
 
 ## Done when
 

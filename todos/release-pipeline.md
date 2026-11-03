@@ -8,20 +8,17 @@
 
 ## Where it stands
 
-The scaffold was pushed on 2026-11-03: a FastAPI app serving `/` and
-`/healthz`, the image build, CI and release-please, copied from reelbarrow's
-proven pipeline. The repository settings match reelbarrow's.
+On 2026-11-03 the scaffold was pushed, 0.1.0 released from pull request #1 on
+branch `release-please--branches--main`, and deployed in dry run. Checked that
+day:
 
-## The work
+- The `v0.1.0` tag and the image's revision label are both `08d28d8`.
+- From the desktop on the LAN, `/healthz` over HTTPS reports
+  `"dry_run": true`, with a Let's Encrypt certificate that verifies.
+- In the pod, the books share lists its 131 author directories and refuses a
+  write with `Read-only file system`.
 
-1. Merge release-please's first pull request once CI on `main` is green. Its
-   branch must be `release-please--branches--main`; one with `--components--` in
-   it means a `package-name` crept into the config (see `docs/releasing.md`).
-2. In the deployment repository: a `Deployment` with `BOOKDROP_DRY_RUN` unset,
-   the books volume mounted read-only at `/books`, a volume at `/data`, a
-   `Service`, an internal `Ingress` that allows uploads larger than the
-   ingress's default body size, and image automation with the semver range
-   `>=0.1.0 <1.0.0`.
+The phone check below is what remains.
 
 ## Done when
 

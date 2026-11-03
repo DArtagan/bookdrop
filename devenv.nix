@@ -5,7 +5,7 @@
 }:
 
 {
-  # libgourou's adept_activate makes the Adobe device key, once, on a desktop;
+  # libgourou's adept_activate makes the device key, once, on a desktop;
   # see "Adobe identity" in docs/design.md.
   packages = with pkgs; [
     gh
