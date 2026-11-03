@@ -7,7 +7,7 @@
 # This runs in dry run: it prepares books and changes nothing in the library.
 services:
   bookdrop:
-    image: ghcr.io/dartagan/bookdrop:0.2.0 # x-release-please-version
+    image: ghcr.io/dartagan/bookdrop:0.2.1 # x-release-please-version
     restart: unless-stopped
     environment:
       # Going live means setting this to "false" and removing `:ro` from the
