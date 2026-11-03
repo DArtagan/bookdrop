@@ -5,7 +5,6 @@
 
 ### Bug Fixes
 
-* report the dropped book by its title and what was done to it ([da7d1a2](https://github.com/DArtagan/bookdrop/commit/da7d1a2d51919e8162fc9d0357497880a7ab2b15))
 * report the dropped book by its title and what was done to it ([369515e](https://github.com/DArtagan/bookdrop/commit/369515eca7e946ac96e51d50ad681d75b1ac0afb))
 
 ## [0.2.1](https://github.com/DArtagan/bookdrop/compare/v0.2.0...v0.2.1) (2026-11-03)
