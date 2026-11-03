@@ -4,7 +4,7 @@ name = "bookdrop"
 version = "0.1.0"
 description = "A web drop that files purchased ebooks into a Stump library"
 license = "MIT"
-requires-python = ">=3.13"
+requires-python = ">=3.15"
 dependencies = [
   "fastapi>=0.115",
   "pydantic-settings>=2.6",

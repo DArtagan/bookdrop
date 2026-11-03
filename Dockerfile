@@ -12,7 +12,7 @@ RUN nix --extra-experimental-features "nix-command flakes" build \
   && cp -a $(nix-store --query --requisites /libgourou) /closure/nix/store/ \
   && ln -s "$(readlink -f /libgourou)" /closure/opt/libgourou
 
-FROM docker.io/library/python:3.13-slim
+FROM docker.io/library/python:3.15-slim
 
 COPY --from=uv /uv /usr/local/bin/uv
 COPY --from=libgourou /closure/ /
