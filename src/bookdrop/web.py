@@ -35,8 +35,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _page(
             f"<h1>bookdrop {escape(version('bookdrop'))}</h1>"
             f"<p>{escape(mode)}</p>"
+            # No accept attribute: iOS greys out every file whose extension it
+            # has no type for, .acsm among them. /drop judges by content.
             "<form method=post action=/drop enctype=multipart/form-data>"
-            "<input type=file name=file accept='.acsm,.epub,.pdf' required> "
+            "<input type=file name=file required> "
             "<button>Drop</button></form>"
         )
 
