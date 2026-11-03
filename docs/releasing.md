@@ -1,0 +1,56 @@
+# Releasing and deploying
+
+A release is a deliberate act: merging a commit to `main` does not deploy it.
+
+## How a version is made
+
+1. Commits on `main` follow [Conventional Commits](https://www.conventionalcommits.org/).
+   The `convco` commit-msg hook refuses any that do not, because release-please
+   reads nothing else.
+2. On every push to `main`, release-please updates a standing pull request,
+   `chore(main): release X.Y.Z`. It bumps the version in `pyproject.toml`,
+   `uv.lock` and the example `compose.yaml`, and writes `CHANGELOG.md` from the
+   commits since the last release.
+3. Merging that pull request tags `vX.Y.Z` and creates a GitHub release. The
+   `publish` job then builds the image **from the tag** and pushes
+   `ghcr.io/dartagan/bookdrop:X.Y.Z`, and `latest`.
+
+`release-please-config.json` names no `package-name`, and must not: release-please
+puts it into the release branch's name and, unless `include-component-in-tag` is
+off, into the tag. Without it the branch is `release-please--branches--main` and
+the tag `vX.Y.Z`. The Python strategy reads the package name from
+`pyproject.toml` for itself. Releases are immutable once published, so a tag
+written with the wrong name stays.
+
+Below 1.0, a breaking change bumps the minor version rather than the major, and
+so do `feat` commits; `fix` bumps the patch.
+
+Release PRs are opened by `github-actions`, and GitHub holds CI on them at
+*action required* until someone approves the run from the PR. Approving is
+optional: they change only versions and the changelog, and CI runs on `main`
+once one is merged. Opening them needs the repository setting *Allow GitHub
+Actions to create and approve pull requests*.
+
+## How it reaches the cluster
+
+Flux deploys bookdrop from the deployment repository (see *The deployment
+half* in `AGENTS.md`). It polls GHCR, and an `ImagePolicy` with the semver range
+`>=0.1.0 <1.0.0` selects the newest release. Flux Bot then commits the new tag
+into bookdrop's `Deployment` there. Crossing to 1.0 is a deliberate edit of
+that range.
+
+Dry run or live is a property of the deployment, not of a release. Turning
+filing on means setting `BOOKDROP_DRY_RUN` to `"false"` **and** making the
+books mount writable, together, in the deployment repository.
+
+## Checking a release
+
+The tag, the image and the source should all name the same commit:
+
+```bash
+git rev-parse 'vX.Y.Z^{commit}'
+skopeo inspect docker://ghcr.io/dartagan/bookdrop:X.Y.Z \
+  | jq -r '.Labels["org.opencontainers.image.revision"]'
+```
+
+The running pod reports its version on `/` and the mode it is in on `/healthz`.

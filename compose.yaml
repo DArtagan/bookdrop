@@ -1,0 +1,31 @@
+# An example deployment. Set BOOKS_ROOT to the library Stump reads.
+#
+#   BOOKS_ROOT=/srv/books docker compose up -d
+#
+# This runs in dry run: it prepares books and changes nothing in the library.
+services:
+  bookdrop:
+    image: ghcr.io/dartagan/bookdrop:0.0.0 # x-release-please-version
+    restart: unless-stopped
+    environment:
+      # Going live means setting this to "false" and removing `:ro` from the
+      # books mount below, together. The read-only mount is what stands between
+      # a bug in the flag's handling and the library.
+      BOOKDROP_DRY_RUN: "true"
+    volumes:
+      - ${BOOKS_ROOT:?set BOOKS_ROOT to the books library}:/books:ro
+      - data:/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      # The image has no curl or wget.
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')
+      interval: 30s
+      start_period: 10s
+
+volumes:
+  data:

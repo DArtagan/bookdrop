@@ -1,0 +1,124 @@
+# Design
+
+bookdrop takes a purchased ebook from a phone or a desktop browser and files it
+into the library [Stump](https://www.stumpapp.dev/) reads, with metadata a
+person has confirmed. It is the one way books enter that library, so every book
+arrives with the same layout, the same sidecars and no DRM.
+
+## The flow
+
+1. Buy the book. From Kobo, choose the Adobe DRM edition.
+2. Download what the store offers: an `.acsm` for Adobe DRM, or an EPUB when
+   the book is DRM-free.
+3. Open bookdrop and upload it. On a phone that is the browser's file picker over
+   Downloads; a Web Share Target lets the share sheet send it directly.
+4. bookdrop fulfils an `.acsm` into the book, strips the Adobe DRM, reads the
+   metadata, and shows it prefilled with the destination path.
+5. Accept, or edit and accept. bookdrop files the book and asks Stump to scan.
+
+## Decisions
+
+Made by Will on 2026-11-03, recorded so they are not relitigated:
+
+- **A web drop**, not a share to copy files into, and not a CLI. Kobo's Adobe
+  DRM is handled from the start rather than added later.
+- **DRM removal is in scope**, for personal backup and reading on any device.
+- **Adobe DRM, not Readium LCP.** See *What it does not accept*.
+- **A confirmation screen**, not automatic filing. A store's metadata is a
+  starting point; series and index in particular are often missing.
+- **A dedicated Adobe ID** for bookdrop, used by nothing else.
+
+## Input
+
+| Upload | What happens |
+|---|---|
+| `.acsm` | `acsmdownloader` fulfils it into an encrypted EPUB or PDF, then `adept_remove` strips the DRM |
+| DRM-free `.epub` | straight to metadata |
+| anything else | refused, saying why |
+
+A file still encrypted after `adept_remove` is refused: nothing DRM-locked
+enters the library. Kobo sells some titles as Adobe PDF; the PDF is kept, and
+converting it to EPUB waits until a purchase needs it.
+
+An `.acsm` is not the book but a one-time claim on it. It carries an expiry,
+hours after the purchase, and the first Adobe identity to fulfil it owns the
+download. bookdrop fulfils one as soon as it arrives. Whether Kobo serves a
+fresh `.acsm` from the account's library once one has lapsed was not checked.
+
+### What it does not accept
+
+- **Readium LCP.** Its DRM cannot be removed by any maintained tool: the noDRM
+  fork of DeDRM dropped LCP after Readium's
+  [2022 DMCA takedown](https://github.com/github/dmca/blob/master/2022/01/2022-01-04-readium.md).
+  An LCP book reads only in LCP apps, never in Stump. Some stores offer both;
+  choose Adobe.
+- **Kindle formats**, until a purchase needs them.
+
+## Adobe identity
+
+[libgourou](https://forge.soutade.fr/soutade/libgourou) implements Adobe's
+ADEPT protocol without Adobe Digital Editions: `adept_activate` registers a
+device against an Adobe ID, `acsmdownloader` fulfils, `adept_remove` strips.
+
+`adept_activate` runs **once, on a desktop**, against the dedicated Adobe ID.
+Its output, `device.xml`, `activation.xml` and `devicesalt`, is the device key.
+The deployment holds it as a secret mounted into the container, so:
+
+- the Adobe password never reaches the server, and
+- a restart does not activate a new device. Adobe limits activations per
+  account, and the device key is what the books are fulfilled to.
+
+The device key is backed up with the deployment's secrets. Losing it means
+activating again, which spends an activation; books already filed are
+unaffected, as they no longer carry DRM.
+
+## Metadata
+
+Read from the book's OPF. With an ISBN, gaps are filled from Open Library, then
+Google Books. The confirmation screen requires title, author, and series with
+its index where there is one, and offers publisher, ISBN, date, description,
+language and cover. An author alias table maps variant spellings to one
+canonical name.
+
+The confirmed values are written into the EPUB itself, since Stump reads them
+from there, and into a `metadata.opf` beside it.
+
+## Layout
+
+```
+Author/Series/Title/Title.epub     # in a series
+Author/Title/Title.epub            # standalone
+```
+
+with `cover.jpg` and `metadata.opf` alongside, and the original PDF when that
+is what the store sold. This is the layout the library already has: on
+2026-11-03 it held 131 author directories and 230 EPUBs, with `metadata.opf`
+and `cover.jpg` beside nearly every book, and series one level deeper
+(`Frank Herbert/Dune/Dune Messiah/`). A colon in a title is written ` - `
+(`Chapterhouse - Dune`).
+
+Path components are folded to Latin-1 (`’` to `'`, `–` to `-`, `…` to `...`):
+the share the library lives on fails any filename character above U+00FF with
+`EIO`. The true title stays in the metadata. A target that already exists is
+shown on the confirmation screen, never overwritten.
+
+After filing, bookdrop starts a scan through Stump's API, authenticated with a
+user-scoped API key.
+
+## Rules that protect the library
+
+- **Dry run is the default.** `BOOKDROP_DRY_RUN` is true unless set to
+  `false`. Every write under the library root goes through a single executor
+  that checks it, and the deployment mounts the library read-only while dry run
+  is on.
+- **No real book, `.acsm` or device key enters the repository.** An `.acsm`
+  carries a purchase token and the device key is an account credential. Tests
+  use synthetic EPUBs, and stand-ins for libgourou's tools.
+
+## Phones
+
+The internal network is the only way in; the tailnet carries a phone to it from
+anywhere. Phase two makes bookdrop an installable PWA with a Web Share Target,
+so sharing a downloaded `.acsm` lands on the confirmation screen. Share targets
+need a secure context, so this depends on the ingress serving a certificate the
+phone trusts; that was not checked.
