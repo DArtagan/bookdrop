@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/DArtagan/bookdrop/compare/v0.2.0...v0.2.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* let iOS pick an .acsm in the upload form ([#7](https://github.com/DArtagan/bookdrop/issues/7)) ([842fa43](https://github.com/DArtagan/bookdrop/commit/842fa430a91be5c4e3913c47197c4f22d1627262))
+
 ## [0.2.0](https://github.com/DArtagan/bookdrop/compare/v0.1.0...v0.2.0) (2026-11-03)
 
 
