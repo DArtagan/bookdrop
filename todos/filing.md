@@ -56,6 +56,9 @@ and not re-read; it was not confirmed. A book bookdrop files is scanned fresh.
   (<https://www.stumpapp.dev/docs/developer/api>).
 - Going live: `BOOKDROP_DRY_RUN=false` and a writable books mount, together, in
   the deployment repository.
+  On 2026-11-05 nothing could write into the books share at all, as its owner
+  and modes refuse the share's account; the deployment repository's move of that
+  share to NFS fixes it, and going live waits on it. The code does not.
 
 ## Done when
 
