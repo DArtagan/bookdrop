@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/DArtagan/bookdrop/compare/v0.3.0...v0.3.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* show and log a failed Open Library lookup, and let it be retried ([#14](https://github.com/DArtagan/bookdrop/issues/14)) ([6bb1a5d](https://github.com/DArtagan/bookdrop/commit/6bb1a5d0e8910b0215e9693808b8d5c08a5c324f))
+
 ## [0.3.0](https://github.com/DArtagan/bookdrop/compare/v0.2.2...v0.3.0) (2026-11-05)
 
 
