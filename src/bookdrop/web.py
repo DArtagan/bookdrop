@@ -40,14 +40,14 @@ def series_problem(meta: Metadata) -> str:
 
 def create_app(
     settings: Settings | None = None,
-    find: Callable[[str, bool], Metadata] | None = None,
+    find: Callable[[str], Metadata] | None = None,
 ) -> FastAPI:
-    """The web app. find(isbn, with_authors) looks an ISBN up; tests replace it."""
+    """The web app. find(isbn) looks an ISBN up; tests replace it."""
     settings = settings or Settings()
 
-    def open_library(isbn: str, with_authors: bool) -> Metadata:
+    def open_library(isbn: str) -> Metadata:
         with lookup.client() as http:
-            return lookup.open_library(isbn, http, with_authors=with_authors)
+            return lookup.open_library(isbn, http)
 
     find = find or open_library
     app = FastAPI(title="bookdrop")
@@ -115,7 +115,7 @@ def create_app(
             own.title = file.filename.rsplit(".", 1)[0]
         # Synchronous on purpose: the confirmation screen is the next thing the
         # person sees, and lookup's timeout bounds the wait.
-        found = find(own.isbn, not own.authors) if own.isbn else Metadata()
+        found = find(own.isbn) if own.isbn else Metadata()
         merged, sources = lookup.fill(own, found)
         record = drops.Drop(
             directory=directory,

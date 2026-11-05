@@ -36,46 +36,23 @@ def client(routes: dict[str, object], asked: list | None = None) -> httpx.Client
 
 
 def test_open_library_record():
+    asked = []
     http = client(
         {
             "/isbn/9780374248529.json": EDITION,
             "/works/OL1W.json": WORK,
             "/authors/OL1A.json": AUTHOR,
-        }
+        },
+        asked,
     )
-    found = open_library("9780374248529", http, with_authors=True)
+    found = open_library("9780374248529", http)
+    assert asked == ["/isbn/9780374248529.json", "/works/OL1W.json"]
     assert found.title == "The Right Book"
-    assert found.authors == ["An Author"]
+    assert found.authors == []
     assert found.publisher == "A Publisher"
     assert found.date == "2021-09-21"
     assert found.description == "About the book."
     assert found.language == "eng"
-
-
-def test_authors_from_the_work_when_the_edition_has_none():
-    edition = {**EDITION, "authors": []}
-    work = {**WORK, "authors": [{"author": {"key": "/authors/OL1A"}}]}
-    http = client(
-        {
-            "/isbn/1.json": edition,
-            "/works/OL1W.json": work,
-            "/authors/OL1A.json": AUTHOR,
-        }
-    )
-    assert open_library("1", http, with_authors=True).authors == ["An Author"]
-
-
-def test_authors_not_wanted_are_not_requested():
-    asked = []
-    routes = {
-        "/isbn/1.json": EDITION,
-        "/works/OL1W.json": WORK,
-        "/authors/OL1A.json": AUTHOR,
-    }
-    found = open_library("1", client(routes, asked), with_authors=False)
-    assert found.authors == []
-    assert found.title == "The Right Book"
-    assert asked == ["/isbn/1.json", "/works/OL1W.json"]
 
 
 @pytest.mark.parametrize(
@@ -84,11 +61,11 @@ def test_authors_not_wanted_are_not_requested():
 )
 def test_failure_is_an_empty_answer(failure):
     http = client({"/isbn/1.json": failure})
-    assert open_library("1", http, with_authors=True) == Metadata()
+    assert open_library("1", http) == Metadata()
 
 
 def test_unknown_isbn_is_an_empty_answer():
-    assert open_library("1", client({}), with_authors=True) == Metadata()
+    assert open_library("1", client({})) == Metadata()
 
 
 @pytest.mark.parametrize(

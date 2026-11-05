@@ -7,12 +7,9 @@ import httpx
 from bookdrop.metadata import Metadata
 
 OPEN_LIBRARY = "https://openlibrary.org"
-# Open Library answers in about four seconds from the cluster, and a lookup is up
-# to five requests; a slower one leaves gaps rather than holding the upload.
+# Open Library answers in about four seconds from the cluster, and a lookup is two
+# requests; a slower one leaves gaps rather than holding the upload.
 TIMEOUT = 8.0
-# Each author's name is a request of its own, and an anthology can credit dozens.
-# The cap bounds the wait; three is a judgment, not a measurement.
-MAX_AUTHORS = 3
 
 # "The Stormlight Archive ; bk. 1", "Dune (2)", "Discworld, #4": a name, then a
 # trailing number with an optional word for it.
@@ -39,10 +36,11 @@ def client() -> httpx.Client:
     )
 
 
-def open_library(isbn: str, http: httpx.Client, *, with_authors: bool) -> Metadata:
+def open_library(isbn: str, http: httpx.Client) -> Metadata:
     """What Open Library knows of an ISBN; empty when it knows nothing or fails.
 
-    Authors' names cost a request each, so they are fetched only when asked for.
+    Never authors: the edition links each by key, a request apiece, and every EPUB
+    in the library names its own (230 of 230 on 2026-11-05), which fill keeps.
     """
     try:
         edition = _get(http, f"/isbn/{isbn}.json")
@@ -51,15 +49,6 @@ def open_library(isbn: str, http: httpx.Client, *, with_authors: bool) -> Metada
         work = None
         if works := edition.get("works"):
             work = _get(http, f"{works[0]['key']}.json")
-        author_keys = [a["key"] for a in edition.get("authors", []) if "key" in a]
-        if not author_keys and work:
-            author_keys = [
-                a["author"]["key"] for a in work.get("authors", []) if "author" in a
-            ]
-        authors = []
-        for key in author_keys[:MAX_AUTHORS] if with_authors else []:
-            if (author := _get(http, f"{key}.json")) and author.get("name"):
-                authors.append(author["name"])
     except httpx.HTTPError, ValueError, KeyError, TypeError:
         return Metadata()
     series, index = _series(edition.get("series") or [])
@@ -69,7 +58,6 @@ def open_library(isbn: str, http: httpx.Client, *, with_authors: bool) -> Metada
     languages = edition.get("languages") or [{}]
     return Metadata(
         title=edition.get("title", ""),
-        authors=authors,
         series=series,
         series_index=index,
         isbn=isbn,
