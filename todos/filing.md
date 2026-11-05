@@ -20,7 +20,8 @@ standard alone:
   typed by refinement, and `dc:source`, are ignored, so the first Kobo book's
   ISBN never reached Stump. Write it with `opf:scheme`.
 - **`dc:subject` becomes Stump's genres**, and Calibre's tags are written as
-  `dc:subject`: 85 of the library's 259 books have genres this way.
+  `dc:subject`: 85 of the library's 259 books have genres this way. Write
+  `genres` as one `dc:subject` each.
 - **`calibre:title_sort`** is read for sorting; 225 books have it. Derive it
   ("The Way of Kings" to "Way of Kings, The") rather than ask for it.
 - Every `dc:creator` becomes a writer, whatever its role. `dc:description`

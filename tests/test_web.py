@@ -54,9 +54,7 @@ def drop(client, tmp_path, **epub) -> str:
 def form(page: str) -> dict[str, str]:
     """The confirmation form's fields as the page shows them."""
     fields = dict(re.findall(r'name="(\w+)" value="([^"]*)"', page))
-    fields["description"] = re.search(
-        r'name="description">([^<]*)</textarea>', page
-    ).group(1)
+    fields.update(re.findall(r'name="(\w+)">([^<]*)</textarea>', page))
     return fields
 
 
@@ -242,3 +240,23 @@ def test_confirm_takes_a_fractional_series_number(client, tmp_path):
     fields = form(client.get(location).text) | {"series": "Dune", "series_index": "3.5"}
     page = client.post(location, data=fields | {"action": "confirm"}).text
     assert "Confirmed." in page
+
+
+def test_genres_are_edited_one_a_line(client, tmp_path):
+    location = drop(
+        client,
+        tmp_path,
+        metadata=BOOK + "<dc:subject>Fantasy</dc:subject>",
+        version="2.0",
+    )
+    fields = form(client.get(location).text)
+    assert fields["genres"] == "Fantasy"
+
+    page = client.post(
+        location,
+        data=fields
+        | {"genres": "Fantasy\r\nFiction, fantasy, epic\r\n\r\n", "action": "update"},
+    ).text
+
+    assert form(page)["genres"] == "Fantasy\nFiction, fantasy, epic"
+    assert "Genres, one a line <small>from you" in page

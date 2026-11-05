@@ -18,6 +18,9 @@ CALIBRE = """
 <dc:language>eng</dc:language>
 <meta name="calibre:series" content="Dune"/>
 <meta name="calibre:series_index" content="2.0"/>
+<dc:subject>Science Fiction</dc:subject>
+<dc:subject>Fiction / Science Fiction / Space Opera</dc:subject>
+<dc:subject>Science Fiction</dc:subject>
 """
 
 # Shaped as the first Kobo purchase was on 2026-11-03: the ISBN only in
@@ -59,6 +62,7 @@ def test_calibre_opf(tmp_path):
     assert meta.isbn == "9780441015610"
     assert meta.publisher == "Ace"
     assert meta.language == "eng"
+    assert meta.genres == ["Science Fiction", "Fiction / Science Fiction / Space Opera"]
 
 
 def test_kobo_opf(tmp_path):

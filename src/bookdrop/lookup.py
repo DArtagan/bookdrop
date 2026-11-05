@@ -41,6 +41,9 @@ def open_library(isbn: str, http: httpx.Client) -> Metadata:
 
     Authors are left empty. Open Library names each only by a key costing another
     request, and the book's own authors, which EPUBs carry, are the ones kept.
+    So are genres: its subjects mix genres spelt several ways with catalogue and
+    marketing tags ("nyt:hardcover-fiction=2010-09-19"), and each would become a
+    genre in Stump.
     """
     try:
         edition = _get(http, f"/isbn/{isbn}.json")

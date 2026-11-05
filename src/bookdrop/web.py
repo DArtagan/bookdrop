@@ -14,9 +14,10 @@ from bookdrop.adept import Refused, prepare
 from bookdrop.config import Settings
 from bookdrop.metadata import Metadata
 
-# Every field the screen shows as one text box. Authors are a list, edited as
-# one box joined with "&", so they are handled on their own.
-EDITABLE = tuple(f.name for f in fields(Metadata) if f.name != "authors")
+# The list fields, each edited as one box, and what separates its entries there.
+# A genre can contain a comma ("Fiction, fantasy, epic"), so genres go one a line.
+LISTS = {"authors": "&", "genres": "\n"}
+EDITABLE = tuple(f.name for f in fields(Metadata) if f.name not in LISTS)
 
 templates = Environment(
     loader=PackageLoader("bookdrop"), autoescape=select_autoescape()
@@ -152,10 +153,11 @@ def create_app(
             if value != getattr(record.metadata, name):
                 setattr(record.metadata, name, value)
                 record.sources[name] = "you"
-        names = [a.strip() for a in submitted("authors").split("&") if a.strip()]
-        if names != record.metadata.authors:
-            record.metadata.authors = names
-            record.sources["authors"] = "you"
+        for name, separator in LISTS.items():
+            values = [v.strip() for v in submitted(name).split(separator) if v.strip()]
+            if values != getattr(record.metadata, name):
+                setattr(record.metadata, name, values)
+                record.sources[name] = "you"
         table, alias_error = load_aliases()
         canonicalise(record, table)
         problem = series_problem(record.metadata)

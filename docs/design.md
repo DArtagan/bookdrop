@@ -97,6 +97,14 @@ answer into gaps. Google Books is not used: without a key it answered
 `429 Quota exceeded … Queries per day`, as every keyless caller shares one
 quota. A key would make it usable.
 
+Two fields are never filled from Open Library. Authors, because it names each
+only by a key costing another request, and EPUBs carry their own. Genres,
+because its subjects are not genres: for *The Way of Kings* on 2026-11-05 they
+mixed "Fantasy", "Epic Fantasy", "high fantasy" and "Fiction, fantasy, epic"
+with "New York Times Bestseller" and `nyt:hardcover-fiction=2010-09-19`, and
+each would become a genre in Stump. Genres come from the book's `dc:subject`,
+which is where Stump reads them and Calibre writes its tags, or from the person.
+
 The confirmation screen shows each field with where its value came from, the
 book, Open Library, the alias table or the person, and every field is editable.
 An author alias table, `authors.toml` on the data volume, maps variant spellings

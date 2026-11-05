@@ -13,7 +13,11 @@ EDITION = {
     "languages": [{"key": "/languages/eng"}],
     "works": [{"key": "/works/OL1W"}],
 }
-WORK = {"title": "The Right Book", "description": {"value": "About the book."}}
+WORK = {
+    "title": "The Right Book",
+    "description": {"value": "About the book."},
+    "subjects": ["Fantasy", "nyt:hardcover-fiction=2010-09-19"],
+}
 AUTHOR = {"name": "An Author"}
 
 
@@ -53,6 +57,7 @@ def test_open_library_record():
     assert found.date == "2021-09-21"
     assert found.description == "About the book."
     assert found.language == "eng"
+    assert found.genres == []
 
 
 @pytest.mark.parametrize(

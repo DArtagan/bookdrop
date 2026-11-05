@@ -28,6 +28,8 @@ class Metadata:
     date: str = ""
     description: str = ""
     language: str = ""
+    # dc:subject, which Stump shows as genres and Calibre writes its tags as.
+    genres: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -61,6 +63,9 @@ def read(book: Path) -> Metadata:
         date=_text(meta.find(f"{DC}date")) or _property(meta, "dcterms:date"),
         description=_text(meta.find(f"{DC}description")),
         language=_text(meta.find(f"{DC}language")),
+        genres=list(
+            dict.fromkeys(g for s in meta.findall(f"{DC}subject") if (g := _text(s)))
+        ),
     )
 
 

@@ -35,6 +35,7 @@
     <div>{{ field("language", "Language", meta.language) }}</div>
   </div>
   {{ field("description", "Description", meta.description, multiline=True) }}
+  {{ field("genres", "Genres, one a line", meta.genres | join("\n"), multiline=True) }}
   <div class="row">
     <button name="action" value="update">Update path</button>
     <button class="primary" name="action" value="confirm">Confirm</button>
