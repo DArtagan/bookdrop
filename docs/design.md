@@ -167,8 +167,11 @@ What Stump reads decides the forms, taken from its source at v0.1.11 on
 genres in `dc:subject` and the sort title in `calibre:title_sort`, and it matches
 tag and attribute names by their literal `dc:` and `opf:` prefixes, so
 bookdrop's elements spell those whatever prefixes the book declares. EPUB 3
-removed the `opf:` attributes. In an EPUB 3 book bookdrop writes EPUB 3's own
-forms, which epubcheck accepts, and Stump then sees no ISBN.
+removed the `opf:` attributes, so in an EPUB 3 book bookdrop writes EPUB 3's own
+forms, except that the ISBN's identifier carries both its EPUB 3 refinement and
+`opf:scheme`, so that Stump reads it too. epubcheck reports that attribute as an
+error, which readers ignore; Will chose Stump having the ISBN over the book
+validating cleanly, on 2026-11-05.
 
 In Stump the library is collection-based: each author's folder is one Stump
 series. A book's series shows in Stump only through its metadata, and the

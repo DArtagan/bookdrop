@@ -23,10 +23,6 @@ was shown on the page and logged.
 
 ## What remains
 
-- **Whether Stump gets the ISBN of an EPUB 3 book.** It reads an ISBN only as
-  `opf:scheme`, which EPUB 3 does not allow, so bookdrop writes EPUB 3's own
-  form and Stump sees none. Writing `opf:scheme` as well would show it, at the
-  cost of one epubcheck error, which readers ignore. Will to decide.
 - **A Stump API key** with only `ScanLibrary`, created in Stump by an account
   with `ACCESS_API_KEYS`, and the library's id, both in the deployment's
   secret as `BOOKDROP_STUMP_URL`, `BOOKDROP_STUMP_API_KEY` and

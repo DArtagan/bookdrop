@@ -102,11 +102,19 @@ def test_epub3_removes_what_it_replaces_and_its_refinements(tmp_path):
     assert "2021-08-05T17:30:56Z" not in text  # dcterms:modified moves on
 
 
-def test_epub3_uses_only_epub3_forms(tmp_path):
+def test_epub3_uses_epub3_forms_but_for_the_isbn(tmp_path):
     text = opf_of(rewrite(epub3(tmp_path), META), tmp_path)
-    assert "opf:role" not in text and "opf:scheme" not in text
+    assert "opf:role" not in text
     assert 'property="role" scheme="marc:relators">aut<' in text
-    assert 'property="identifier-type" scheme="onix:codelist5">15<' in text
+    # Both forms on one identifier: Stump reads the attribute, EPUB 3 readers
+    # the refinement.
+    assert re.search(
+        r'<dc:identifier [^>]*id="bookdrop-isbn"[^>]*opf:scheme="ISBN"[^>]*>'
+        r"9780765376671<",
+        text,
+    )
+    assert 'refines="#bookdrop-isbn" property="identifier-type"' in text
+    assert text.count("9780765376671") == 1
 
 
 def test_epub2_uses_the_forms_stump_reads(tmp_path):

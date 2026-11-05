@@ -130,8 +130,10 @@ def title_sort(title: str, language: str) -> str:
 
 def _elements(meta: Metadata, epub3: bool) -> list[bytes]:
     """bookdrop's metadata as OPF elements, in the forms the package's version
-    allows. EPUB 3 dropped the opf: attributes in favour of refinements, and
-    Stump reads an ISBN only as opf:scheme, so it sees none in an EPUB 3 book."""
+    allows, but for the ISBN. EPUB 3 dropped the opf: attributes in favour of
+    refinements, and Stump reads an ISBN only as opf:scheme, so an EPUB 3 book
+    gets both on one element: Stump reads one, other readers the other, and
+    epubcheck reports the attribute as its one error (Will, 2026-11-05)."""
     out = [_element("dc:title", meta.title)]
     for number, name in enumerate(meta.authors, 1):
         if epub3:
@@ -147,7 +149,11 @@ def _elements(meta: Metadata, epub3: bool) -> list[bytes]:
             out.append(_element("dc:creator", name, {"opf:role": "aut"}))
     if meta.isbn and epub3:
         out.append(
-            _element("dc:identifier", f"urn:isbn:{meta.isbn}", {"id": "bookdrop-isbn"})
+            _element(
+                "dc:identifier",
+                meta.isbn,
+                {"id": "bookdrop-isbn", "opf:scheme": "ISBN"},
+            )
         )
         # ONIX code list 5: 15 is ISBN-13, 02 ISBN-10.
         onix = "15" if len(meta.isbn) == 13 else "02"
