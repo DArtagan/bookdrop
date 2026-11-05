@@ -97,7 +97,7 @@ confirmation screen: what it filled, that Open Library has no record, or that it
 could not be asked and why, which is also logged. A failure leaves the book
 confirmable, since what the book says of itself is enough to file it, and
 *Look up again* retries, with the ISBN as corrected. On 2026-11-05 Open Library
-timed out from the LAN and the cluster for over an hour, so this is not rare. Google Books is not used: without a key it answered
+timed out from both the LAN and the cluster. Google Books is not used: without a key it answered
 `429 Quota exceeded … Queries per day`, as every keyless caller shares one
 quota. A key would make it usable.
 
