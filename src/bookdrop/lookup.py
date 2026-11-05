@@ -39,8 +39,8 @@ def client() -> httpx.Client:
 def open_library(isbn: str, http: httpx.Client) -> Metadata:
     """What Open Library knows of an ISBN; empty when it knows nothing or fails.
 
-    Never authors: the edition links each by key, a request apiece, and every EPUB
-    in the library names its own (230 of 230 on 2026-11-05), which fill keeps.
+    Authors are left empty. Open Library names each only by a key costing another
+    request, and the book's own authors, which EPUBs carry, are the ones kept.
     """
     try:
         edition = _get(http, f"/isbn/{isbn}.json")
