@@ -42,8 +42,11 @@ and not re-read; it was not confirmed. A book bookdrop files is scanned fresh.
   while dry run is on. A test fails if any other module opens a path under the
   books root for writing.
 - Write the confirmed metadata into the EPUB's OPF, in the forms *What Stump
-  reads* names, and alongside it write `metadata.opf` and `cover.jpg`. Decide
-  whether `metadata.opf` is still worth writing when Stump ignores it. Calibre's `ebook-meta` was the first idea, but
+  reads* names, and alongside it write `metadata.opf` and `cover.jpg`.
+  `metadata.opf` stays although Stump ignores it (Will, 2026-11-05): it is the
+  Calibre-compatible backup every other book in the library carries. Not
+  `<book>.opf`, which Stump would read in preference to the EPUB, leaving two
+  copies of the metadata to drift. Calibre's `ebook-meta` was the first idea, but
   Calibre is a large dependency for one rewrite of an XML file inside a zip;
   choose deliberately and record why.
 - A Stump API key in the deployment's secret, and a scan of the library after
