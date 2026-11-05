@@ -1,14 +1,14 @@
 import shutil
 from pathlib import Path
 
-from bookdrop.filing import Plan
+from bookdrop.filing import FilingError, Plan
 
 
 class DryRun(Exception):
     """Filing was asked for while dry run is on."""
 
 
-class Exists(Exception):
+class Exists(FilingError):
     """A book is already where this one would go."""
 
 
@@ -25,7 +25,8 @@ class Executor:
 
         Each file is written beside its name and renamed into place, so a reader
         never sees half of one. On any failure everything this call created is
-        removed, empty parents included.
+        removed, empty parents included. Raises FilingError when the library
+        refuses the write or a book is already there.
         """
         if self.dry_run:
             raise DryRun("Dry run is on, so nothing is written to the library.")
@@ -51,7 +52,7 @@ class Executor:
                 part = target / f".{name}.part"
                 part.write_bytes(data)
                 part.replace(target / name)
-        except BaseException:
+        except BaseException as error:
             if made_target:
                 shutil.rmtree(target, ignore_errors=True)
             # Only if still empty: another book may have arrived beside it.
@@ -60,5 +61,9 @@ class Executor:
                     path.rmdir()
                 except OSError:
                     break
+            if isinstance(error, OSError):
+                raise FilingError(
+                    f"The library could not be written to: {error}"
+                ) from error
             raise
         return target

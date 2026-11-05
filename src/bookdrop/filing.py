@@ -1,13 +1,19 @@
 import io
+import zipfile
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from lxml import etree
 from PIL import Image
 
 from bookdrop import layout, metadata, opf
 from bookdrop.drops import Drop
 
 JPEG_QUALITY = 90
+
+
+class FilingError(Exception):
+    """A book could not be filed, with the reason a person reads."""
 
 
 @dataclass(frozen=True)
@@ -20,17 +26,31 @@ class Plan:
 
 
 def plan(drop: Drop) -> Plan:
-    """The files a confirmed drop becomes. Reads the drop; writes nothing."""
+    """The files a confirmed drop becomes. Reads the drop; writes nothing.
+
+    Raises FilingError for a book it cannot read: its zip, its OPF or its cover.
+    """
     meta = drop.metadata
     destination = layout.destination(meta, drop.extension)
-    if drop.extension == "epub":
-        book = opf.rewrite(drop.book, meta)
-    else:
-        book = drop.book.read_bytes()
-    files = {destination.name: book}
-    image = metadata.cover(drop.book)
-    if image is not None:
-        files["cover.jpg"] = jpeg(*image)
+    try:
+        if drop.extension == "epub":
+            book = opf.rewrite(drop.book, meta)
+        else:
+            book = drop.book.read_bytes()
+        files = {destination.name: book}
+        image = metadata.cover(drop.book)
+        if image is not None:
+            files["cover.jpg"] = jpeg(*image)
+    except (
+        etree.LxmlError,
+        zipfile.BadZipFile,
+        KeyError,
+        ValueError,
+        OSError,
+    ) as error:
+        raise FilingError(
+            f"The book could not be prepared for filing: {error}"
+        ) from error
     files["metadata.opf"] = opf.sidecar(meta, cover=image is not None)
     return Plan(destination.parent, files)
 

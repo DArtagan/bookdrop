@@ -230,6 +230,9 @@ def _refined(metadata: etree._Element, element_id: str | None, prop: str) -> str
 def _rootfile(book: zipfile.ZipFile) -> str:
     container = etree.fromstring(book.read("META-INF/container.xml"))
     rootfile = next(
-        e for e in container.iter() if etree.QName(e).localname == "rootfile"
+        (e for e in container.iter() if etree.QName(e).localname == "rootfile"),
+        None,
     )
+    if rootfile is None:
+        raise ValueError("the container names no OPF")
     return posixpath.normpath(rootfile.get("full-path", ""))

@@ -14,7 +14,8 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from bookdrop import drops, filing, layout, lookup, metadata, stump
 from bookdrop.adept import Refused, prepare
 from bookdrop.config import Settings
-from bookdrop.executor import Executor, Exists
+from bookdrop.executor import Executor
+from bookdrop.filing import FilingError
 from bookdrop.lookup import LookupFailed
 from bookdrop.metadata import Metadata, normalise_isbn
 
@@ -131,29 +132,26 @@ def create_app(
             drop.metadata.authors = authors
             drop.sources["authors"] = "alias"
 
-    def file_book(record: drops.Drop) -> str:
-        """File a confirmed drop, or in dry run say what filing would write.
+    def file_book(record: drops.Drop) -> None:
+        """File a confirmed drop, or in dry run record what filing would write.
 
-        Returns why it could not be filed, or "" when it was (or would be).
+        Raises FilingError, saying why, when the book cannot be filed.
         """
-        try:
-            plan = filing.plan(record)
-        except Exception as error:
-            log.exception("Preparing %s for filing failed", record.id)
-            return f"The book could not be prepared for filing: {error}"
+        plan = filing.plan(record)
         record.planned = [str(plan.directory / name) for name in plan.files]
         if settings.dry_run:
-            return ""
-        try:
-            executor.file(plan)
-        except Exists as error:
-            return str(error)
-        except OSError as error:
-            log.exception("Filing %s into %s failed", record.id, plan.directory)
-            return f"The library could not be written to: {error}"
+            return
+        executor.file(plan)
         record.filed = str(plan.directory)
         # The library has the book now; the drop keeps only its record.
         record.book.unlink()
+
+    def ask_stump(record: drops.Drop) -> None:
+        """Ask Stump to scan for a book just filed, and record what came of it.
+
+        A failure is recorded, not raised: the book is filed by now, and a scan
+        started from Stump finds it.
+        """
         try:
             scan()
         except stump.ScanFailed as error:
@@ -170,7 +168,6 @@ def create_app(
                 "Stump is scanning the library; the book appears when it ends."
             )
             record.scan_failed = False
-        return ""
 
     def show(drop: drops.Drop, alias_error: str, reason: str = "") -> HTMLResponse:
         destination = layout.destination(drop.metadata, drop.extension)
@@ -269,8 +266,21 @@ def create_app(
         record.confirmed = submitted("action") == "confirm" and not reason
         record.planned = []
         if record.confirmed:
-            reason = file_book(record)
-            record.confirmed = not reason
+            try:
+                file_book(record)
+            except FilingError as error:
+                # A traceback only where something failed beneath the reason.
+                log.warning(
+                    "Filing %s failed: %s",
+                    record.id,
+                    error,
+                    exc_info=error.__cause__ is not None,
+                )
+                record.confirmed = False
+                reason = str(error)
+            else:
+                if record.filed:
+                    ask_stump(record)
         record.save()
         return show(record, alias_error, reason)
 

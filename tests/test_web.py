@@ -450,3 +450,15 @@ def test_nothing_but_the_executor_writes_under_the_books_root(
     finally:
         settings.books_root.chmod(0o755)
     assert len(written) == 1
+
+
+def test_a_book_that_cannot_be_prepared_is_not_filed(live, settings, tmp_path, scans):
+    location = drop(live, tmp_path, metadata=BOOK, version="2.0")
+    (drop_dir,) = (settings.data_dir / "drops").iterdir()
+    (drop_dir / "book.epub").write_bytes(b"PK\x03\x04 no longer a zip")
+
+    page = file_it(live, location)
+
+    assert "Not filed: The book could not be prepared for filing:" in page
+    assert list(settings.books_root.iterdir()) == []
+    assert scans["calls"] == 0
