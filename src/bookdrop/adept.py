@@ -25,8 +25,8 @@ class Refused(Exception):
 @dataclass(frozen=True)
 class Prepared:
     book: Path
-    # What was done to reach a DRM-free book, said to the person who dropped it.
-    done: str
+    # How the upload became a DRM-free book, said to the person who dropped it.
+    preparation: str
 
 
 def kind(path: Path) -> str:
@@ -89,19 +89,19 @@ def prepare(upload: Path, out_dir: Path, adept_dir: Path) -> Prepared:
         _run(adept_dir, "adept_remove", "-o", str(book), str(source))
         if encrypted(book, book_kind):
             raise Refused("The DRM could not be removed from this book.")
-        done = (
+        preparation = (
             "Downloaded from the store, DRM removed."
             if fulfilled_from_store
             else "DRM removed."
         )
     else:
         shutil.copyfile(source, book)
-        done = (
+        preparation = (
             "Downloaded from the store, which sent it DRM-free."
             if fulfilled_from_store
             else "It arrived DRM-free."
         )
-    return Prepared(book, done)
+    return Prepared(book, preparation)
 
 
 def _run(adept_dir: Path, tool: str, *args: str) -> None:

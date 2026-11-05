@@ -1,75 +1,180 @@
 import shutil
-import uuid
-from html import escape
+import tomllib
+from collections.abc import Callable
+from dataclasses import fields
+from decimal import Decimal, InvalidOperation
 from importlib.metadata import version
 
-from fastapi import FastAPI, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from jinja2 import Environment, PackageLoader, select_autoescape
 
+from bookdrop import drops, layout, lookup, metadata
 from bookdrop.adept import Refused, prepare
 from bookdrop.config import Settings
-from bookdrop.metadata import title
+from bookdrop.metadata import Metadata, normalise_isbn
+
+# The list fields, each edited as one box, and what separates its entries there.
+# A genre can contain a comma ("Fiction, fantasy, epic"), so genres go one a line.
+LISTS = {"authors": "&", "genres": "\n"}
+EDITABLE = tuple(f.name for f in fields(Metadata) if f.name not in LISTS)
+
+templates = Environment(
+    loader=PackageLoader("bookdrop"), autoescape=select_autoescape()
+)
 
 
-def _page(body: str) -> str:
-    return (
-        "<!doctype html><meta name=viewport content='width=device-width'>"
-        f"<title>bookdrop</title>{body}"
-    )
+def problem(meta: Metadata) -> str:
+    """Why the book cannot be filed as it stands, or "" when it can."""
+    if not meta.title:
+        return "A book needs a title."
+    if not meta.authors:
+        return "A book needs at least one author."
+    if meta.isbn and not normalise_isbn(meta.isbn):
+        return "The ISBN's check digit is wrong; correct it or clear it."
+    if meta.series_index and not meta.series:
+        return "A series number needs a series."
+    if meta.series_index:
+        try:
+            number = Decimal(meta.series_index)
+        except InvalidOperation:
+            number = None
+        # Decimal also reads "NaN" and "Infinity".
+        if number is None or not number.is_finite() or number < 0:
+            return "The series number must be a number, such as 2 or 3.5."
+    return ""
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    find: Callable[[str], Metadata] | None = None,
+) -> FastAPI:
+    """The web app. find(isbn) looks an ISBN up; tests replace it."""
     settings = settings or Settings()
+
+    def open_library(isbn: str) -> Metadata:
+        with lookup.client() as http:
+            return lookup.open_library(isbn, http)
+
+    find = find or open_library
     app = FastAPI(title="bookdrop")
+    aliases_file = settings.data_dir / "authors.toml"
+
+    def render(name: str, status: int = 200, **context) -> HTMLResponse:
+        page = templates.get_template(name).render(**context)
+        return HTMLResponse(page, status_code=status)
+
+    def load_aliases() -> tuple[dict[str, str], str]:
+        try:
+            return layout.aliases(aliases_file), ""
+        except (tomllib.TOMLDecodeError, OSError) as error:
+            return {}, str(error)
+
+    def canonicalise(drop: drops.Drop, table: dict[str, str]) -> None:
+        authors = layout.canonical(drop.metadata.authors, table)
+        if authors != drop.metadata.authors:
+            drop.metadata.authors = authors
+            drop.sources["authors"] = "alias"
+
+    def show(drop: drops.Drop, alias_error: str, reason: str = "") -> HTMLResponse:
+        destination = layout.destination(drop.metadata, drop.extension)
+        return render(
+            "drop.html",
+            drop=drop,
+            meta=drop.metadata,
+            destination=destination,
+            exists=(settings.books_root / destination.parent).exists(),
+            has_cover=metadata.cover(drop.book) is not None,
+            alias_error=alias_error,
+            problem=reason,
+        )
 
     @app.get("/healthz")
     def healthz() -> dict[str, str | bool]:
         return {"status": "ok", "dry_run": settings.dry_run}
 
     @app.get("/", response_class=HTMLResponse)
-    def index() -> str:
-        mode = (
-            "Dry run: books are prepared and nothing in the library is changed."
-            if settings.dry_run
-            else "Filing is live."
-        )
-        return _page(
-            f"<h1>bookdrop {escape(version('bookdrop'))}</h1>"
-            f"<p>{escape(mode)}</p>"
-            # No accept attribute: iOS greys out every file whose extension it
-            # has no type for, .acsm among them. /drop judges by content.
-            "<form method=post action=/drop enctype=multipart/form-data>"
-            "<input type=file name=file required> "
-            "<button>Drop</button></form>"
+    def index() -> HTMLResponse:
+        return render(
+            "index.html",
+            version=version("bookdrop"),
+            dry_run=settings.dry_run,
+            drops=drops.all_drops(settings.data_dir),
         )
 
-    @app.post("/drop", response_class=HTMLResponse)
-    def drop(file: UploadFile) -> HTMLResponse:
-        drop_dir = settings.data_dir / "drops" / uuid.uuid4().hex
-        drop_dir.mkdir(parents=True)
-        upload = drop_dir / "upload"
+    @app.post("/drop")
+    def drop(file: UploadFile) -> Response:
+        directory = drops.new_directory(settings.data_dir)
+        upload = directory / "upload"
         with upload.open("wb") as out:
             shutil.copyfileobj(file.file, out)
         try:
-            prepared = prepare(upload, drop_dir, settings.adept_dir)
+            prepared = prepare(upload, directory, settings.adept_dir)
         except Refused as refused:
-            shutil.rmtree(drop_dir)
-            return HTMLResponse(
-                _page(f"<h1>Not taken</h1><p>{escape(str(refused))}</p>"),
-                status_code=422,
-            )
-        book = prepared.book
-        for leftover in drop_dir.iterdir():
-            if leftover != book:
+            drops.discard(directory)
+            return render("refused.html", status=422, reason=str(refused))
+        for leftover in directory.iterdir():
+            if leftover != prepared.book:
                 leftover.unlink()
-        name = title(book) or file.filename or "The book"
-        size = book.stat().st_size / 1_000_000
-        return HTMLResponse(
-            _page(
-                f"<h1>Ready</h1><p><b>{escape(name)}</b>: "
-                f"{book.suffix[1:].upper()}, {size:.1f} MB.</p>"
-                f"<p>{escape(prepared.done)}</p>"
-            )
+
+        own = metadata.read(prepared.book)
+        # Synchronous on purpose: the confirmation screen is the next thing the
+        # person sees, and lookup's timeout bounds the wait.
+        found = find(own.isbn) if own.isbn else Metadata()
+        merged, sources = lookup.fill(own, found)
+        record = drops.Drop(
+            directory=directory,
+            uploaded_as=file.filename or "upload",
+            preparation=prepared.preparation,
+            book_name=prepared.book.name,
+            metadata=merged,
+            sources=sources,
+            created=drops.now(),
         )
+        canonicalise(record, load_aliases()[0])
+        record.save()
+        return RedirectResponse(f"/drops/{record.id}", status_code=303)
+
+    @app.get("/drops/{drop_id}", response_class=HTMLResponse)
+    def view(drop_id: str) -> HTMLResponse:
+        record = drops.load(settings.data_dir, drop_id)
+        if record is None:
+            return render("refused.html", status=404, reason="No such drop.")
+        return show(record, load_aliases()[1])
+
+    @app.post("/drops/{drop_id}", response_class=HTMLResponse)
+    async def edit(drop_id: str, request: Request) -> HTMLResponse:
+        record = drops.load(settings.data_dir, drop_id)
+        if record is None:
+            return render("refused.html", status=404, reason="No such drop.")
+        form = await request.form()
+
+        def submitted(name: str) -> str:
+            return str(form.get(name, "")).strip()
+
+        for name in EDITABLE:
+            value = submitted(name)
+            if value != getattr(record.metadata, name):
+                setattr(record.metadata, name, value)
+                record.sources[name] = "you"
+        for name, separator in LISTS.items():
+            values = [v.strip() for v in submitted(name).split(separator) if v.strip()]
+            if values != getattr(record.metadata, name):
+                setattr(record.metadata, name, values)
+                record.sources[name] = "you"
+        table, alias_error = load_aliases()
+        canonicalise(record, table)
+        reason = problem(record.metadata)
+        record.confirmed = submitted("action") == "confirm" and not reason
+        record.save()
+        return show(record, alias_error, reason)
+
+    @app.get("/drops/{drop_id}/cover")
+    def cover(drop_id: str) -> Response:
+        record = drops.load(settings.data_dir, drop_id)
+        image = metadata.cover(record.book) if record else None
+        if image is None:
+            return Response(status_code=404)
+        return Response(image[0], media_type=image[1])
 
     return app
