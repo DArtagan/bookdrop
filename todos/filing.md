@@ -21,12 +21,13 @@ Kobo's original has. Rewriting *Dune Messiah* from the library, a Calibre EPUB 2
 changed none of its fields and added no epubcheck finding. An unconfigured scan
 was shown on the page and logged.
 
+The deployment holds Stump's URL, the library's id and a key with only
+`ScanLibrary`, since 2026-11-05. That day, the scan request bookdrop sends, made
+from the deployed pod with that key, was accepted, and Stump's job record shows
+the library scan completing in 22.8 s.
+
 ## What remains
 
-- **A Stump API key** with only `ScanLibrary`, created in Stump by an account
-  with `ACCESS_API_KEYS`, and the library's id, both in the deployment's
-  secret as `BOOKDROP_STUMP_URL`, `BOOKDROP_STUMP_API_KEY` and
-  `BOOKDROP_STUMP_LIBRARY_ID`. The scan can be tried before going live.
 - **A writable books volume.** Nothing could write into the books share on
   2026-11-05, its owner and modes refusing the share's account. The deployment
   repository's move of that share to NFS fixes it; going live waits on that,
