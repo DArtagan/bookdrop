@@ -6,13 +6,44 @@
 > `docs/design.md`. Build the executor, the one writer under the books root,
 > and file confirmed books for real.
 
+## What Stump reads
+
+Read from Stump's source at its deployed tag, v0.1.11
+(`core/src/media/processor/epub.rs`, `core/src/metadata/media.rs`), and its
+database, on 2026-11-05. Writing the OPF has to meet this, not the EPUB
+standard alone:
+
+- **Series only as Calibre writes it**: `<meta name="calibre:series">` and
+  `calibre:series_index`. EPUB 3's `belongs-to-collection` and
+  `group-position` are ignored. Write the Calibre pair.
+- **ISBN only as `<dc:identifier opf:scheme="ISBN">`.** An EPUB 3 identifier
+  typed by refinement, and `dc:source`, are ignored, so the first Kobo book's
+  ISBN never reached Stump. Write it with `opf:scheme`.
+- **`dc:subject` becomes Stump's genres**, and Calibre's tags are written as
+  `dc:subject`: 85 of the library's 259 books have genres this way.
+- **`calibre:title_sort`** is read for sorting; 225 books have it. Derive it
+  ("The Way of Kings" to "Way of Kings, The") rather than ask for it.
+- Every `dc:creator` becomes a writer, whatever its role. `dc:description`
+  is the summary. `dc:date` is parsed in any of the forms `confirm` produces.
+- **A sidecar is read only as `<book>.opf`**, beside `<book>.epub`, and it
+  overrides the EPUB's own metadata. Stump never reads `metadata.opf`, which is
+  Calibre's name for the same file and the one the library's books carry.
+- **The library is collection-based**: each author folder is one Stump series
+  (126 of them). A book's own series in Stump comes only from its embedded
+  metadata; the `Series/` folder level organises the share, not Stump.
+
+No EPUB in the library has a year in Stump, though they carry `dc:date` in a
+form 0.1.11 parses. The likeliest cause is metadata recorded by an older Stump
+and not re-read; it was not confirmed. A book bookdrop files is scanned fresh.
+
 ## The work
 
 - The executor: every write under `/books` goes through it, and it refuses
   while dry run is on. A test fails if any other module opens a path under the
   books root for writing.
-- Write the confirmed metadata into the EPUB's OPF, and alongside it write
-  `metadata.opf` and `cover.jpg`. Calibre's `ebook-meta` was the first idea, but
+- Write the confirmed metadata into the EPUB's OPF, in the forms *What Stump
+  reads* names, and alongside it write `metadata.opf` and `cover.jpg`. Decide
+  whether `metadata.opf` is still worth writing when Stump ignores it. Calibre's `ebook-meta` was the first idea, but
   Calibre is a large dependency for one rewrite of an XML file inside a zip;
   choose deliberately and record why.
 - A Stump API key in the deployment's secret, and a scan of the library after
