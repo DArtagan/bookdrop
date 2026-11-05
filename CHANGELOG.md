@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/DArtagan/bookdrop/compare/v0.3.1...v0.4.0) (2026-11-05)
+
+
+### Features
+
+* file confirmed books into the library and ask Stump to scan ([#17](https://github.com/DArtagan/bookdrop/issues/17)) ([85725d5](https://github.com/DArtagan/bookdrop/commit/85725d5ac4bec2197d9ee1f82a5f90d58667320f))
+
 ## [0.3.1](https://github.com/DArtagan/bookdrop/compare/v0.3.0...v0.3.1) (2026-11-05)
 
 
