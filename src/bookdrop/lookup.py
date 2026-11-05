@@ -36,8 +36,15 @@ def client() -> httpx.Client:
     )
 
 
-def open_library(isbn: str, http: httpx.Client) -> Metadata:
-    """What Open Library knows of an ISBN; empty when it knows nothing or fails.
+class LookupFailed(Exception):
+    """Open Library could not be asked, or answered in a shape not understood."""
+
+
+def open_library(isbn: str, http: httpx.Client) -> Metadata | None:
+    """What Open Library knows of an ISBN, or None when it has no record of it.
+
+    Raises LookupFailed when it cannot be reached or its answer cannot be read,
+    so that a failure is never mistaken for Open Library knowing nothing.
 
     Authors are left empty. Open Library names each only by a key costing another
     request, and the book's own authors, which EPUBs carry, are the ones kept.
@@ -48,12 +55,18 @@ def open_library(isbn: str, http: httpx.Client) -> Metadata:
     try:
         edition = _get(http, f"/isbn/{isbn}.json")
         if edition is None:
-            return Metadata()
+            return None
         work = None
         if works := edition.get("works"):
             work = _get(http, f"{works[0]['key']}.json")
-    except httpx.HTTPError, ValueError, KeyError, TypeError:
-        return Metadata()
+        return _metadata(isbn, edition, work)
+    except httpx.HTTPError as error:
+        raise LookupFailed(f"{type(error).__name__}: {error}") from error
+    except (ValueError, KeyError, TypeError, AttributeError) as error:
+        raise LookupFailed(f"an answer it could not read ({error!r})") from error
+
+
+def _metadata(isbn: str, edition: dict, work: dict | None) -> Metadata:
     series, index = _series(edition.get("series") or [])
     description = (work or {}).get("description") or edition.get("description") or ""
     if isinstance(description, dict):
@@ -71,24 +84,27 @@ def open_library(isbn: str, http: httpx.Client) -> Metadata:
     )
 
 
-def fill(book: Metadata, found: Metadata) -> tuple[Metadata, dict[str, str]]:
-    """Merge a lookup into what the book says of itself.
+def fill(
+    current: Metadata, found: Metadata, sources: dict[str, str] | None = None
+) -> tuple[Metadata, dict[str, str]]:
+    """Fill the gaps in current from a lookup, never overriding a value it has.
 
-    Returns the merged metadata, where each field is the book's own value when it
-    has one and found's otherwise, and a map from each field that ended up with a
-    value to its source, "book" or "Open Library". A field empty in both is left
-    empty and absent from the map.
+    Returns the merged metadata and a map from each field with a value to where
+    it came from. A value current already had keeps its source from sources, or
+    "book" when sources does not name one, as at upload; a gap filled from found
+    is "Open Library". A field empty in both stays empty and out of the map.
     """
-    merged, sources = {}, {}
-    for name, own in book.to_dict().items():
+    merged, origins = {}, {}
+    sources = sources or {}
+    for name, own in current.to_dict().items():
         other = found.to_dict()[name]
         if own:
-            merged[name], sources[name] = own, "book"
+            merged[name], origins[name] = own, sources.get(name, "book")
         elif other:
-            merged[name], sources[name] = other, "Open Library"
+            merged[name], origins[name] = other, "Open Library"
         else:
             merged[name] = own
-    return Metadata.from_dict(merged), sources
+    return Metadata.from_dict(merged), origins
 
 
 def _get(http: httpx.Client, path: str) -> dict | None:

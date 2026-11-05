@@ -5,6 +5,7 @@ from conftest import ACSM, drm_epub, make_epub
 from fastapi.testclient import TestClient
 
 from bookdrop.config import Settings
+from bookdrop.lookup import LookupFailed
 from bookdrop.metadata import Metadata
 from bookdrop.web import create_app
 
@@ -29,15 +30,19 @@ def settings(tmp_path):
 
 @pytest.fixture
 def looked_up():
-    """The ISBNs the app looked up, and what each answers."""
+    """The ISBNs the app looked up, and what each answers: Metadata, None for
+    no record, or a LookupFailed to raise."""
     return {"asked": [], "answers": {}}
 
 
 @pytest.fixture
 def client(settings, looked_up):
-    def find(isbn: str) -> Metadata:
+    def find(isbn: str) -> Metadata | None:
         looked_up["asked"].append(isbn)
-        return looked_up["answers"].get(isbn, Metadata())
+        answer = looked_up["answers"].get(isbn)
+        if isinstance(answer, LookupFailed):
+            raise answer
+        return answer
 
     return TestClient(create_app(settings, find=find))
 
@@ -179,9 +184,9 @@ def test_cover(client, tmp_path):
 
 
 def test_drops_survive_a_restart(settings, tmp_path):
-    first = TestClient(create_app(settings, find=lambda isbn: Metadata()))
+    first = TestClient(create_app(settings, find=lambda isbn: None))
     location = drop(first, tmp_path, metadata=BOOK, version="2.0")
-    second = TestClient(create_app(settings, find=lambda isbn: Metadata()))
+    second = TestClient(create_app(settings, find=lambda isbn: None))
     assert "Dune Messiah" in second.get("/").text
     assert "<h1>Dune Messiah</h1>" in second.get(location).text
 
@@ -209,7 +214,7 @@ def test_drop_of_an_acsm(client, settings, tmp_path, tools, adept_dir, monkeypat
             books_root=settings.books_root,
             adept_dir=adept_dir,
         ),
-        find=lambda isbn: Metadata(),
+        find=lambda isbn: None,
     )
     response = TestClient(app).post("/drop", files={"file": ("URLLink.acsm", ACSM)})
     assert "<h1>Real Title</h1>" in response.text
@@ -287,3 +292,52 @@ def test_a_book_without_a_title_is_not_named_after_its_upload(client, tmp_path):
     page = client.get(drop(client, tmp_path, title=None)).text
     assert form(page)["title"] == ""
     assert "<h1>Untitled</h1>" in page
+
+
+def test_lookup_says_what_it_filled(client, tmp_path, looked_up):
+    looked_up["answers"]["9780441015610"] = Metadata(publisher="Ace", date="1969")
+    page = client.get(drop(client, tmp_path, metadata=BOOK, version="2.0")).text
+    assert "Open Library filled 2 fields." in page
+
+
+def test_no_record_is_said(client, tmp_path):
+    page = client.get(drop(client, tmp_path, metadata=BOOK, version="2.0")).text
+    assert "Open Library has no record of ISBN 9780441015610." in page
+
+
+def test_no_isbn_is_said(client, tmp_path):
+    page = client.get(drop(client, tmp_path)).text
+    assert "No ISBN, so Open Library was not asked." in page
+    assert "Look up again" not in page
+
+
+def test_a_failed_lookup_is_shown_logged_and_can_be_retried(
+    client, tmp_path, looked_up, caplog
+):
+    looked_up["answers"]["9780441015610"] = LookupFailed("ConnectTimeout: timed out")
+    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
+    page = client.get(location).text
+
+    assert "could not be asked about 9780441015610: ConnectTimeout: timed out" in page
+    assert 'class="warn">Open Library could not be asked' in page
+    assert "Look up again" in page
+    assert "Open Library lookup of 9780441015610 failed" in caplog.text
+
+    looked_up["answers"]["9780441015610"] = Metadata(publisher="Ace")
+    fields = form(page) | {"title": "Edited Title"}
+    page = client.post(location, data=fields | {"action": "lookup"}).text
+
+    assert "Open Library filled 1 field." in page
+    assert 'class="warn"' not in page
+    assert form(page)["publisher"] == "Ace"
+    assert form(page)["title"] == "Edited Title"
+    assert "Title <small>from you" in page
+
+
+def test_look_up_again_uses_a_corrected_isbn(client, tmp_path, looked_up):
+    looked_up["answers"]["9780765376671"] = Metadata(publisher="Tor")
+    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
+    fields = form(client.get(location).text) | {"isbn": "9780765376671"}
+    page = client.post(location, data=fields | {"action": "lookup"}).text
+    assert looked_up["asked"] == ["9780441015610", "9780765376671"]
+    assert form(page)["publisher"] == "Tor"

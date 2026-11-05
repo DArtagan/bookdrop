@@ -1,3 +1,4 @@
+import logging
 import shutil
 import tomllib
 from collections.abc import Callable
@@ -12,7 +13,10 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from bookdrop import drops, layout, lookup, metadata
 from bookdrop.adept import Refused, prepare
 from bookdrop.config import Settings
+from bookdrop.lookup import LookupFailed
 from bookdrop.metadata import Metadata, normalise_isbn
+
+log = logging.getLogger(__name__)
 
 # The list fields, each edited as one box, and what separates its entries there.
 # A genre can contain a comma ("Fiction, fantasy, epic"), so genres go one a line.
@@ -47,9 +51,10 @@ def problem(meta: Metadata) -> str:
 
 def create_app(
     settings: Settings | None = None,
-    find: Callable[[str], Metadata] | None = None,
+    find: Callable[[str], Metadata | None] | None = None,
 ) -> FastAPI:
-    """The web app. find(isbn) looks an ISBN up; tests replace it."""
+    """The web app. find(isbn) looks an ISBN up, as lookup.open_library does;
+    tests replace it."""
     settings = settings or Settings()
 
     def open_library(isbn: str) -> Metadata:
@@ -69,6 +74,37 @@ def create_app(
             return layout.aliases(aliases_file), ""
         except (tomllib.TOMLDecodeError, OSError) as error:
             return {}, str(error)
+
+    def look_up(record: drops.Drop) -> None:
+        """Fill the record's gaps from Open Library, and say what came of it."""
+        isbn = record.metadata.isbn
+        record.lookup_failed = False
+        if not isbn:
+            record.lookup = "No ISBN, so Open Library was not asked."
+            return
+        try:
+            found = find(isbn)
+        except LookupFailed as error:
+            log.warning("Open Library lookup of %s failed: %s", isbn, error)
+            record.lookup_failed = True
+            record.lookup = (
+                f"Open Library could not be asked about {isbn}: {error}. "
+                "The gaps below may be ones it would fill; look up again later."
+            )
+            return
+        if found is None:
+            record.lookup = f"Open Library has no record of ISBN {isbn}."
+            return
+        before = set(record.sources)
+        record.metadata, record.sources = lookup.fill(
+            record.metadata, found, record.sources
+        )
+        filled = len(set(record.sources) - before)
+        record.lookup = (
+            f"Open Library filled {filled} field{'' if filled == 1 else 's'}."
+            if filled
+            else "Open Library had nothing the book lacks."
+        )
 
     def canonicalise(drop: drops.Drop, table: dict[str, str]) -> None:
         authors = layout.canonical(drop.metadata.authors, table)
@@ -118,19 +154,18 @@ def create_app(
                 leftover.unlink()
 
         own = metadata.read(prepared.book)
-        # Synchronous on purpose: the confirmation screen is the next thing the
-        # person sees, and lookup's timeout bounds the wait.
-        found = find(own.isbn) if own.isbn else Metadata()
-        merged, sources = lookup.fill(own, found)
         record = drops.Drop(
             directory=directory,
             uploaded_as=file.filename or "upload",
             preparation=prepared.preparation,
             book_name=prepared.book.name,
-            metadata=merged,
-            sources=sources,
+            metadata=own,
+            sources=lookup.fill(own, Metadata())[1],
             created=drops.now(),
         )
+        # Synchronous on purpose: the confirmation screen is the next thing the
+        # person sees, and lookup's timeout bounds the wait.
+        look_up(record)
         canonicalise(record, load_aliases()[0])
         record.save()
         return RedirectResponse(f"/drops/{record.id}", status_code=303)
@@ -162,6 +197,8 @@ def create_app(
             if values != getattr(record.metadata, name):
                 setattr(record.metadata, name, values)
                 record.sources[name] = "you"
+        if submitted("action") == "lookup":
+            look_up(record)
         table, alias_error = load_aliases()
         canonicalise(record, table)
         reason = problem(record.metadata)

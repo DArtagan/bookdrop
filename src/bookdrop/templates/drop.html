@@ -11,6 +11,8 @@
 {% if has_cover %}<img class="cover" src="/drops/{{ drop.id }}/cover" alt="">{% endif %}
 <h1>{{ meta.title or "Untitled" }}</h1>
 <p class="note">{{ drop.preparation }}</p>
+{% if drop.lookup %}<p class="{{ 'warn' if drop.lookup_failed else 'note' }}">{{ drop.lookup }}
+  {%- if meta.isbn %} <button form="edit" name="action" value="lookup">Look up again</button>{% endif %}</p>{% endif %}
 {% if alias_error %}<p class="warn">authors.toml could not be read, so no aliases apply: {{ alias_error }}</p>{% endif %}
 
 <p>Files to <code>{{ destination }}</code></p>
@@ -21,7 +23,7 @@
 <p class="note">Confirmed. bookdrop does not file books yet, so nothing has been written to the library.</p>
 {% endif %}
 
-<form method="post" action="/drops/{{ drop.id }}">
+<form id="edit" method="post" action="/drops/{{ drop.id }}">
   {{ field("title", "Title", meta.title) }}
   {{ field("authors", "Authors", meta.authors | join(" & ")) }}
   <div class="row">
