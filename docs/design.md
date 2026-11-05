@@ -127,7 +127,7 @@ Path components are folded to ASCII (`’` to `'`, `–` to `-`, `é` to `e`,
 `ß` to `ss`). The share the library lives on fails any filename character above
 U+00FF with `EIO` and stores the rest as Latin-1, while the library's older
 accented names are UTF-8 on disk and read through the share as mojibake: on
-2026-11-03 Stump saw `China MiÃ©ville` among 96 such paths. ASCII is spelt
+2026-11-05 Stump saw `China MiÃ©ville` among 96 such paths. ASCII is spelt
 the same in all three, and stays so when the share moves to UTF-8. Characters Windows forbids become `_`, and a trailing dot or space is
 dropped, as SMB clients cannot round-trip one. The true title stays in the
 metadata. A target that already exists is
