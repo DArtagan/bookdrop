@@ -132,14 +132,10 @@ def test_fill_keeps_the_books_own_values():
     }
 
 
-def test_user_agent_names_bookdrop_and_the_contact():
+def test_user_agent_names_bookdrop():
     from bookdrop.lookup import client as lookup_client
 
-    with lookup_client("books@example.org") as http:
+    with lookup_client() as http:
         agent = http.headers["User-Agent"]
     assert agent.startswith("bookdrop/")
-    assert agent.endswith("(+https://github.com/DArtagan/bookdrop; books@example.org)")
-    with lookup_client() as http:
-        assert http.headers["User-Agent"].endswith(
-            "(+https://github.com/DArtagan/bookdrop)"
-        )
+    assert agent.endswith("(+https://github.com/DArtagan/bookdrop)")

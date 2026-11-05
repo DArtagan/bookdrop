@@ -24,16 +24,18 @@ SERIES = re.compile(
 DATE_FORMATS = ("%b %d, %Y", "%B %d, %Y", "%d %B %Y", "%B %Y", "%Y-%m-%d", "%Y")
 
 
-def client(contact: str = "") -> httpx.Client:
-    # Open Library asks every client to name itself and give a contact, and
-    # allows an identified one three requests a second to an anonymous one's
-    # one; a lookup is several requests in quick succession.
-    about = "; ".join(filter(None, ["+https://github.com/DArtagan/bookdrop", contact]))
+def client() -> httpx.Client:
+    # Open Library asks clients to name themselves. It also asks frequent ones,
+    # making several calls a minute, for a contact address; a drop is about two
+    # calls per book bought, so the repository stands in for one.
     return httpx.Client(
         base_url=OPEN_LIBRARY,
         timeout=TIMEOUT,
         follow_redirects=True,
-        headers={"User-Agent": f"bookdrop/{version('bookdrop')} ({about})"},
+        headers={
+            "User-Agent": f"bookdrop/{version('bookdrop')} "
+            "(+https://github.com/DArtagan/bookdrop)"
+        },
     )
 
 

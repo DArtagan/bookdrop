@@ -46,7 +46,7 @@ def create_app(
     settings = settings or Settings()
 
     def open_library(isbn: str, with_authors: bool) -> Metadata:
-        with lookup.client(settings.contact) as http:
+        with lookup.client() as http:
             return lookup.open_library(isbn, http, with_authors=with_authors)
 
     find = find or open_library
