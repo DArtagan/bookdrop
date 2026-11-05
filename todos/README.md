@@ -16,9 +16,8 @@ Specs are referred to by name, not number, so finishing one renumbers nothing.
 
 | # | spec | what | needs |
 |---|---|---|---|
-| 1 | [confirm](confirm.md) | The upload page and the confirmation screen: metadata read, looked up, edited | — |
-| 2 | [filing](filing.md) | The executor: the book written into the library with its sidecars, and Stump scanning | confirm |
-| 3 | [share-target](share-target.md) | An installable PWA, so a phone's share sheet sends the download straight in | confirm |
+| 1 | [filing](filing.md) | The executor: the book written into the library with its sidecars, and Stump scanning | — |
+| 2 | [share-target](share-target.md) | An installable PWA, so a phone's share sheet sends the download straight in | — |
 
 ## Writing a spec
 
