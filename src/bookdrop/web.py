@@ -12,7 +12,7 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from bookdrop import drops, layout, lookup, metadata
 from bookdrop.adept import Refused, prepare
 from bookdrop.config import Settings
-from bookdrop.metadata import Metadata
+from bookdrop.metadata import Metadata, normalise_isbn
 
 # The list fields, each edited as one box, and what separates its entries there.
 # A genre can contain a comma ("Fiction, fantasy, epic"), so genres go one a line.
@@ -24,8 +24,14 @@ templates = Environment(
 )
 
 
-def series_problem(meta: Metadata) -> str:
-    """Why the series cannot be filed as it stands, or "" when it can."""
+def problem(meta: Metadata) -> str:
+    """Why the book cannot be filed as it stands, or "" when it can."""
+    if not meta.title:
+        return "A book needs a title."
+    if not meta.authors:
+        return "A book needs at least one author."
+    if meta.isbn and not normalise_isbn(meta.isbn):
+        return "The ISBN's check digit is wrong; correct it or clear it."
     if meta.series_index and not meta.series:
         return "A series number needs a series."
     if meta.series_index:
@@ -70,7 +76,7 @@ def create_app(
             drop.metadata.authors = authors
             drop.sources["authors"] = "alias"
 
-    def show(drop: drops.Drop, alias_error: str, problem: str = "") -> HTMLResponse:
+    def show(drop: drops.Drop, alias_error: str, reason: str = "") -> HTMLResponse:
         destination = layout.destination(drop.metadata, drop.extension)
         return render(
             "drop.html",
@@ -80,7 +86,7 @@ def create_app(
             exists=(settings.books_root / destination.parent).exists(),
             has_cover=metadata.cover(drop.book) is not None,
             alias_error=alias_error,
-            problem=problem,
+            problem=reason,
         )
 
     @app.get("/healthz")
@@ -112,8 +118,6 @@ def create_app(
                 leftover.unlink()
 
         own = metadata.read(prepared.book)
-        if not own.title and file.filename:
-            own.title = file.filename.rsplit(".", 1)[0]
         # Synchronous on purpose: the confirmation screen is the next thing the
         # person sees, and lookup's timeout bounds the wait.
         found = find(own.isbn) if own.isbn else Metadata()
@@ -160,10 +164,10 @@ def create_app(
                 record.sources[name] = "you"
         table, alias_error = load_aliases()
         canonicalise(record, table)
-        problem = series_problem(record.metadata)
-        record.confirmed = submitted("action") == "confirm" and not problem
+        reason = problem(record.metadata)
+        record.confirmed = submitted("action") == "confirm" and not reason
         record.save()
-        return show(record, alias_error, problem)
+        return show(record, alias_error, reason)
 
     @app.get("/drops/{drop_id}/cover")
     def cover(drop_id: str) -> Response:

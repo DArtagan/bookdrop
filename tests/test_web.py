@@ -227,7 +227,10 @@ def test_drop_of_an_acsm(client, settings, tmp_path, tools, adept_dir, monkeypat
 )
 def test_confirm_refuses_an_unfileable_series(client, tmp_path, series, index, problem):
     location = drop(client, tmp_path, metadata=BOOK, version="2.0")
-    fields = form(client.get(location).text) | {"series": series, "series_index": index}
+    fields = form(client.get(location).text) | {
+        "series": series,
+        "series_index": index,
+    }
 
     page = client.post(location, data=fields | {"action": "confirm"}).text
 
@@ -260,3 +263,27 @@ def test_genres_are_edited_one_a_line(client, tmp_path):
 
     assert form(page)["genres"] == "Fantasy\nFiction, fantasy, epic"
     assert "Genres, one a line <small>from you" in page
+
+
+@pytest.mark.parametrize(
+    ("change", "problem"),
+    [
+        ({"title": ""}, "needs a title"),
+        ({"authors": " & "}, "needs at least one author"),
+        ({"isbn": "9780441015611"}, "check digit is wrong"),
+    ],
+)
+def test_confirm_refuses_a_book_it_cannot_file(client, tmp_path, change, problem):
+    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
+    fields = form(client.get(location).text) | change
+
+    page = client.post(location, data=fields | {"action": "confirm"}).text
+
+    assert problem in page
+    assert "Confirmed." not in page
+
+
+def test_a_book_without_a_title_is_not_named_after_its_upload(client, tmp_path):
+    page = client.get(drop(client, tmp_path, title=None)).text
+    assert form(page)["title"] == ""
+    assert "<h1>Untitled</h1>" in page

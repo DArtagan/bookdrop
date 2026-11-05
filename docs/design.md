@@ -107,6 +107,9 @@ which is where Stump reads them and Calibre writes its tags, or from the person.
 
 The confirmation screen shows each field with where its value came from, the
 book, Open Library, the alias table or the person, and every field is editable.
+Confirming needs a title and an author, an ISBN only if its check digit holds,
+and a series number only as a number beside its series; the screen says which
+is missing.
 An author alias table, `authors.toml` on the data volume, maps variant spellings
 to one canonical name and is read on each request, so it changes without a
 release.
