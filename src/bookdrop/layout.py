@@ -66,12 +66,24 @@ def fold(text: str) -> str:
     return " ".join("".join(out).split()).rstrip(". ") or "_"
 
 
+class AliasesUnreadable(Exception):
+    """The alias file exists and cannot be used, with why."""
+
+
 def aliases(path: Path) -> dict[str, str]:
-    """[aliases] from the TOML file at path; empty when it does not exist."""
+    """[aliases] from the TOML file at path; empty when it does not exist.
+
+    Raises AliasesUnreadable when it exists and cannot be read as a table.
+    """
     if not path.exists():
         return {}
-    with path.open("rb") as f:
-        table = tomllib.load(f).get("aliases", {})
+    try:
+        with path.open("rb") as f:
+            table = tomllib.load(f).get("aliases", {})
+    except (tomllib.TOMLDecodeError, OSError) as error:
+        raise AliasesUnreadable(f"authors.toml could not be read: {error}") from error
+    if not isinstance(table, dict):
+        raise AliasesUnreadable("authors.toml's [aliases] is not a table")
     return {str(k): str(v) for k, v in table.items()}
 
 

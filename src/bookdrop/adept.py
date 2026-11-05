@@ -111,13 +111,18 @@ def _run(adept_dir: Path, tool: str, *args: str) -> None:
     with tempfile.TemporaryDirectory() as key:
         for name in KEY_FILES:
             shutil.copyfile(adept_dir / name, Path(key) / name)
-        result = subprocess.run(
-            [tool, "-D", key, *args],
-            capture_output=True,
-            text=True,
-            timeout=TOOL_TIMEOUT,
-            check=False,
-        )
+        try:
+            result = subprocess.run(
+                [tool, "-D", key, *args],
+                capture_output=True,
+                text=True,
+                timeout=TOOL_TIMEOUT,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            raise Refused(
+                f"{tool} did not finish within {TOOL_TIMEOUT} seconds."
+            ) from None
     if result.returncode != 0:
         detail = (result.stdout + result.stderr).strip().splitlines()
         raise Refused(f"{tool} failed: {detail[-1] if detail else 'no output'}")

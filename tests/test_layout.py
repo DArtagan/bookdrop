@@ -3,7 +3,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
-from bookdrop.layout import aliases, canonical, destination, fold
+from bookdrop.layout import AliasesUnreadable, aliases, canonical, destination, fold
 from bookdrop.metadata import Metadata
 
 
@@ -64,8 +64,14 @@ def test_aliases(tmp_path):
     assert canonical(["T.A. Pratt", "Other"], table) == ["Tim Pratt", "Other"]
 
 
-def test_unreadable_aliases_raise(tmp_path):
+@pytest.mark.parametrize(
+    ("content", "said"),
+    [("[aliases\n", "could not be read"), ('aliases = "x"\n', "is not a table")],
+)
+def test_unusable_aliases_raise_saying_why(tmp_path, content, said):
     path = tmp_path / "authors.toml"
-    path.write_text("[aliases\n")
-    with pytest.raises(tomllib.TOMLDecodeError):
+    path.write_text(content)
+    with pytest.raises(AliasesUnreadable, match=said) as raised:
         aliases(path)
+    if said == "could not be read":
+        assert isinstance(raised.value.__cause__, tomllib.TOMLDecodeError)

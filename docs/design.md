@@ -39,7 +39,9 @@ Made by Will on 2026-11-03, recorded so they are not relitigated:
 | anything else | refused, saying why |
 
 A file still encrypted after `adept_remove` is refused: nothing DRM-locked
-enters the library. Kobo sells some titles as Adobe PDF; the PDF is kept, and
+enters the library. So is an EPUB whose OPF or named cover cannot be read,
+saying what is wrong with it, rather than arriving with blank fields that look
+like a book that says nothing about itself. Kobo sells some titles as Adobe PDF; the PDF is kept, and
 converting it to EPUB waits until a purchase needs it.
 
 An `.acsm` is not the book but a one-time claim on it. It carries an expiry,
@@ -121,9 +123,6 @@ An author alias table, `authors.toml` on the data volume, maps variant spellings
 to one canonical name and is read on each request, so it changes without a
 release.
 
-The confirmed values are written into the EPUB itself, since Stump reads them
-from there, and into a `metadata.opf` beside it.
-
 ## Layout
 
 ```
@@ -151,15 +150,56 @@ dropped, as SMB clients cannot round-trip one. The true title stays in the
 metadata. A target that already exists is
 shown on the confirmation screen, never overwritten.
 
-After filing, bookdrop starts a scan through Stump's API, authenticated with a
-user-scoped API key.
+## Filing
+
+Confirming files the book; in dry run the page lists the files filing would
+write instead. A filed book's directory holds:
+
+- **The book**, its OPF rewritten with the confirmed metadata. Only the fields
+  bookdrop owns are replaced. The rest of the OPF, rights, accessibility, the
+  package's own identifier, other contributors, stays, and so does every other
+  entry in the EPUB, byte for byte. A PDF is filed as it came.
+- **`metadata.opf`**, the OPF 2.0 sidecar Calibre writes and every other book in
+  the library carries. Stump never reads it: it reads a sidecar only when named
+  `<book>.opf`, and then in preference to the book itself. bookdrop writes none
+  of those, which would leave two copies of the metadata to drift. Kept on Will's
+  decision of 2026-11-05.
+- **`cover.jpg`**, converted to JPEG when the book's own cover is not.
+
+What Stump reads decides the forms, taken from its source at v0.1.11 on
+2026-11-05. It finds a series only as Calibre writes one (`calibre:series`,
+`calibre:series_index`), an ISBN only as `<dc:identifier opf:scheme="ISBN">`,
+genres in `dc:subject` and the sort title in `calibre:title_sort`, and it matches
+tag and attribute names by their literal `dc:` and `opf:` prefixes, so
+bookdrop's elements spell those whatever prefixes the book declares. EPUB 3
+removed the `opf:` attributes, so in an EPUB 3 book bookdrop writes EPUB 3's own
+forms, except that the ISBN's identifier carries both its EPUB 3 refinement and
+`opf:scheme`, so that Stump reads it too. epubcheck reports that attribute as an
+error, which readers ignore; Will chose Stump having the ISBN over the book
+validating cleanly, on 2026-11-05.
+
+In Stump the library is collection-based: each author's folder is one Stump
+series. A book's series shows in Stump only through its metadata, and the
+`Series/` level of the layout organises the share, not Stump.
+
+The executor creates the book's directory with `mkdir`, so a second drop bound
+for the same place fails rather than writing over the first. Each file is written
+beside its name and renamed into place, and a failure removes everything the
+filing made. Once filed, a drop keeps its record and lets go of its copy.
+
+After filing, bookdrop asks Stump to scan the whole library, through its GraphQL
+API with an API key whose only permission is `ScanLibrary`. Stump's own watcher
+never sees a file another client writes to the share, so without the scan a
+filed book would not appear. A scan that fails, or is not set up, is shown and
+logged; the book stays filed, and a scan started from Stump picks it up.
 
 ## Rules that protect the library
 
 - **Dry run is the default.** `BOOKDROP_DRY_RUN` is true unless set to
   `false`. Every write under the library root goes through a single executor
   that checks it, and the deployment mounts the library read-only while dry run
-  is on.
+  is on. A test runs every page against a read-only books root with the
+  executor replaced, so any other writer there fails it.
 - **No real book, `.acsm` or device key enters the repository.** An `.acsm`
   carries a purchase token and the device key is an account credential. Tests
   use synthetic EPUBs, and stand-ins for libgourou's tools.

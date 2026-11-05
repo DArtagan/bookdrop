@@ -36,17 +36,19 @@ def make_epub(
     manifest: str = "",
     files: dict[str, bytes] | None = None,
     version: str = "3.0",
+    unique_identifier: str | None = None,
 ) -> Path:
     """An EPUB whose OPF metadata is title alone, or the given XML."""
     if metadata is None:
         metadata = f"<dc:title>{title}</dc:title>" if title else ""
+    unique = f"unique-identifier='{unique_identifier}'" if unique_identifier else ""
     with zipfile.ZipFile(path, "w") as z:
         z.writestr(_entry("mimetype"), "application/epub+zip")
         z.writestr(_entry("META-INF/container.xml"), CONTAINER)
         z.writestr(
             _entry("OEBPS/package.opf"),
             f"<package xmlns='http://www.idpf.org/2007/opf' version='{version}' "
-            "xmlns:opf='http://www.idpf.org/2007/opf'>"
+            f"{unique} xmlns:opf='http://www.idpf.org/2007/opf'>"
             "<metadata xmlns:dc='http://purl.org/dc/elements/1.1/'>"
             f"{metadata}</metadata><manifest>{manifest}</manifest></package>",
         )

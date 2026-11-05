@@ -3,7 +3,7 @@ import zipfile
 import pytest
 from conftest import make_epub
 
-from bookdrop.metadata import cover, normalise_isbn, read
+from bookdrop.metadata import Metadata, Unreadable, cover, normalise_isbn, read
 
 # Shaped as Calibre writes the library's own sidecars: OPF 2.0, opf:role,
 # opf:scheme, calibre:series.
@@ -92,15 +92,54 @@ def test_a_collection_that_is_not_a_series_is_not_one(tmp_path):
     assert meta.series == ""
 
 
-def test_not_an_epub_reads_empty(tmp_path):
-    bare = tmp_path / "bare.epub"
-    with zipfile.ZipFile(bare, "w") as z:
-        z.writestr(zipfile.ZipInfo("mimetype", (2020, 1, 1, 0, 0, 0)), "x")
-    assert read(bare).title == ""
-    pdf = tmp_path / "b.pdf"
+def test_a_pdf_reads_empty(tmp_path):
+    pdf = tmp_path / "book.pdf"
     pdf.write_bytes(b"%PDF-1.7\n")
-    assert read(pdf).title == ""
+    assert read(pdf) == Metadata()
     assert cover(pdf) is None
+
+
+def bare_epub(path, entries):
+    with zipfile.ZipFile(path, "w") as z:
+        for name, data in entries.items():
+            z.writestr(zipfile.ZipInfo(name, (2020, 1, 1, 0, 0, 0)), data)
+    return path
+
+
+CONTAINER = (
+    "<container><rootfiles><rootfile full-path='p.opf'/></rootfiles></container>"
+)
+
+
+@pytest.mark.parametrize(
+    ("entries", "said"),
+    [
+        ({"mimetype": "x"}, "lacks"),
+        ({"META-INF/container.xml": "<container/>"}, "names no OPF"),
+        (
+            {"META-INF/container.xml": CONTAINER, "p.opf": "<package><open>"},
+            "XML is broken",
+        ),
+        ({"META-INF/container.xml": CONTAINER, "p.opf": "<package/>"}, "no metadata"),
+    ],
+)
+def test_a_broken_epub_is_unreadable_saying_why(tmp_path, entries, said):
+    with pytest.raises(Unreadable, match=said):
+        read(bare_epub(tmp_path / "b.epub", entries))
+
+
+def test_a_cover_named_but_missing_is_unreadable(tmp_path):
+    book = make_epub(
+        tmp_path / "b.epub",
+        manifest="<item id='c' href='gone.jpg' media-type='image/jpeg' "
+        "properties='cover-image'/>",
+    )
+    with pytest.raises(Unreadable, match="gone.jpg"):
+        cover(book)
+
+
+def test_no_cover_named_is_none(tmp_path):
+    assert cover(make_epub(tmp_path / "b.epub")) is None
 
 
 @pytest.mark.parametrize(
