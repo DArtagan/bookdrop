@@ -10,6 +10,8 @@ OPEN_LIBRARY = "https://openlibrary.org"
 # Open Library answers in about four seconds from the cluster, and a lookup is up
 # to five requests; a slower one leaves gaps rather than holding the upload.
 TIMEOUT = 8.0
+# Each author's name is a request of its own, and an anthology can credit dozens.
+# The cap bounds the wait; three is a judgment, not a measurement.
 MAX_AUTHORS = 3
 
 # "The Stormlight Archive ; bk. 1", "Dune (2)", "Discworld, #4": a name, then a
@@ -22,20 +24,24 @@ SERIES = re.compile(
 DATE_FORMATS = ("%b %d, %Y", "%B %d, %Y", "%d %B %Y", "%B %Y", "%Y-%m-%d", "%Y")
 
 
-def client() -> httpx.Client:
+def client(contact: str = "") -> httpx.Client:
+    # Open Library asks every client to name itself and give a contact, and
+    # allows an identified one three requests a second to an anonymous one's
+    # one; a lookup is several requests in quick succession.
+    about = "; ".join(filter(None, ["+https://github.com/DArtagan/bookdrop", contact]))
     return httpx.Client(
         base_url=OPEN_LIBRARY,
         timeout=TIMEOUT,
         follow_redirects=True,
-        headers={
-            "User-Agent": f"bookdrop/{version('bookdrop')} "
-            "(+https://github.com/DArtagan/bookdrop)"
-        },
+        headers={"User-Agent": f"bookdrop/{version('bookdrop')} ({about})"},
     )
 
 
-def open_library(isbn: str, http: httpx.Client) -> Metadata:
-    """What Open Library knows of an ISBN; empty when it knows nothing or fails."""
+def open_library(isbn: str, http: httpx.Client, *, with_authors: bool) -> Metadata:
+    """What Open Library knows of an ISBN; empty when it knows nothing or fails.
+
+    Authors' names cost a request each, so they are fetched only when asked for.
+    """
     try:
         edition = _get(http, f"/isbn/{isbn}.json")
         if edition is None:
@@ -49,7 +55,7 @@ def open_library(isbn: str, http: httpx.Client) -> Metadata:
                 a["author"]["key"] for a in work.get("authors", []) if "author" in a
             ]
         authors = []
-        for key in author_keys[:MAX_AUTHORS]:
+        for key in author_keys[:MAX_AUTHORS] if with_authors else []:
             if (author := _get(http, f"{key}.json")) and author.get("name"):
                 authors.append(author["name"])
     except httpx.HTTPError, ValueError, KeyError, TypeError:
@@ -73,7 +79,13 @@ def open_library(isbn: str, http: httpx.Client) -> Metadata:
 
 
 def fill(book: Metadata, found: Metadata) -> tuple[Metadata, dict[str, str]]:
-    """The book's own values, gaps filled from found, and where each came from."""
+    """Merge a lookup into what the book says of itself.
+
+    Returns the merged metadata, where each field is the book's own value when it
+    has one and found's otherwise, and a map from each field that ended up with a
+    value to its source, "book" or "Open Library". A field empty in both is left
+    empty and absent from the map.
+    """
     merged, sources = {}, {}
     for name, own in book.to_dict().items():
         other = found.to_dict()[name]
@@ -104,6 +116,12 @@ def _series(entries: list[str]) -> tuple[str, str]:
 
 
 def _date(text: str) -> str:
+    """Open Library's free-text date as W3CDTF, at the precision it gives.
+
+    A string, not a date: "2021" or "September 2021" has no day to put in one,
+    and the OPF this is written into holds the date as text. Text that matches
+    no known form, such as "circa 1900", is kept as it is.
+    """
     text = text.strip()
     for fmt in DATE_FORMATS:
         try:

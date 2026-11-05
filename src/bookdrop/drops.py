@@ -2,7 +2,7 @@ import json
 import re
 import shutil
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -17,8 +17,8 @@ class Drop:
 
     directory: Path
     uploaded_as: str = ""
-    # What was done to reach a DRM-free book; see adept.Prepared.
-    done: str = ""
+    # How the upload became a DRM-free book; see adept.Prepared.
+    preparation: str = ""
     book_name: str = ""
     metadata: Metadata = field(default_factory=Metadata)
     # Where each field's value came from: "book", "Open Library", "alias", "you".
@@ -39,15 +39,12 @@ class Drop:
         return self.book.suffix.lstrip(".")
 
     def save(self) -> None:
-        record = {
-            "uploaded_as": self.uploaded_as,
-            "done": self.done,
-            "book": self.book_name,
-            "metadata": self.metadata.to_dict(),
-            "sources": self.sources,
-            "confirmed": self.confirmed,
-            "created": self.created,
-        }
+        record = asdict(self)
+        # The directory is where the record lives, not part of it.
+        del record["directory"]
+        # Written beside and renamed over, which is atomic: a restart mid-write
+        # leaves the old record or the new, never a truncated one that every
+        # page listing the drops would fail to parse.
         tmp = self.directory / "drop.json.tmp"
         tmp.write_text(json.dumps(record, indent=2))
         tmp.replace(self.directory / "drop.json")
@@ -75,16 +72,8 @@ def load(data_dir: Path, drop_id: str) -> Drop | None:
         record = json.loads((directory / "drop.json").read_text())
     except FileNotFoundError:
         return None
-    return Drop(
-        directory=directory,
-        uploaded_as=record["uploaded_as"],
-        done=record["done"],
-        book_name=record["book"],
-        metadata=Metadata.from_dict(record["metadata"]),
-        sources=record["sources"],
-        confirmed=record["confirmed"],
-        created=record["created"],
-    )
+    record["metadata"] = Metadata.from_dict(record["metadata"])
+    return Drop(directory=directory, **record)
 
 
 def all_drops(data_dir: Path) -> list[Drop]:

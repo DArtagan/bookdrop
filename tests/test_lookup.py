@@ -17,8 +17,10 @@ WORK = {"title": "The Right Book", "description": {"value": "About the book."}}
 AUTHOR = {"name": "An Author"}
 
 
-def client(routes: dict[str, object]) -> httpx.Client:
+def client(routes: dict[str, object], asked: list | None = None) -> httpx.Client:
     def handle(request: httpx.Request) -> httpx.Response:
+        if asked is not None:
+            asked.append(request.url.path)
         answer = routes.get(request.url.path)
         if isinstance(answer, Exception):
             raise answer
@@ -41,7 +43,7 @@ def test_open_library_record():
             "/authors/OL1A.json": AUTHOR,
         }
     )
-    found = open_library("9780374248529", http)
+    found = open_library("9780374248529", http, with_authors=True)
     assert found.title == "The Right Book"
     assert found.authors == ["An Author"]
     assert found.publisher == "A Publisher"
@@ -60,7 +62,20 @@ def test_authors_from_the_work_when_the_edition_has_none():
             "/authors/OL1A.json": AUTHOR,
         }
     )
-    assert open_library("1", http).authors == ["An Author"]
+    assert open_library("1", http, with_authors=True).authors == ["An Author"]
+
+
+def test_authors_not_wanted_are_not_requested():
+    asked = []
+    routes = {
+        "/isbn/1.json": EDITION,
+        "/works/OL1W.json": WORK,
+        "/authors/OL1A.json": AUTHOR,
+    }
+    found = open_library("1", client(routes, asked), with_authors=False)
+    assert found.authors == []
+    assert found.title == "The Right Book"
+    assert asked == ["/isbn/1.json", "/works/OL1W.json"]
 
 
 @pytest.mark.parametrize(
@@ -69,11 +84,11 @@ def test_authors_from_the_work_when_the_edition_has_none():
 )
 def test_failure_is_an_empty_answer(failure):
     http = client({"/isbn/1.json": failure})
-    assert open_library("1", http) == Metadata()
+    assert open_library("1", http, with_authors=True) == Metadata()
 
 
 def test_unknown_isbn_is_an_empty_answer():
-    assert open_library("1", client({})) == Metadata()
+    assert open_library("1", client({}), with_authors=True) == Metadata()
 
 
 @pytest.mark.parametrize(
@@ -115,3 +130,16 @@ def test_fill_keeps_the_books_own_values():
         "authors": "book",
         "publisher": "Open Library",
     }
+
+
+def test_user_agent_names_bookdrop_and_the_contact():
+    from bookdrop.lookup import client as lookup_client
+
+    with lookup_client("books@example.org") as http:
+        agent = http.headers["User-Agent"]
+    assert agent.startswith("bookdrop/")
+    assert agent.endswith("(+https://github.com/DArtagan/bookdrop; books@example.org)")
+    with lookup_client() as http:
+        assert http.headers["User-Agent"].endswith(
+            "(+https://github.com/DArtagan/bookdrop)"
+        )

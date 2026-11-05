@@ -16,3 +16,6 @@ class Settings(BaseSettings):
     data_dir: Path = Path("/data")
     # The Adobe device key: device.xml, activation.xml and devicesalt.
     adept_dir: Path = Path("/adept")
+    # An email or phone number for Open Library to reach whoever runs this, sent
+    # in the User-Agent of every lookup. Optional; it raises the rate limit.
+    contact: str = ""

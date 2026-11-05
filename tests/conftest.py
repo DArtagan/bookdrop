@@ -76,8 +76,12 @@ def drm_epub(path: Path) -> Path:
 
 
 # Each stand-in takes `-D <key dir> -o <output> <input>`, as bookdrop calls the
-# real tools, refuses a key directory missing any file, and copies in the file
-# named by its environment variable.
+# real tools, and refuses a key directory missing any file. What it "produces"
+# is whichever file a test names in STUB_FULFILLED (acsmdownloader's output) or
+# STUB_STRIPPED (adept_remove's), copied to the output path; unset, the tool
+# fails. Environment variables because the tools run as subprocesses: the
+# environment reaches them unchanged, so a test chooses each tool's result with
+# monkeypatch.setenv and the code under test calls them exactly as in production.
 STUB = """#!/bin/sh
 for f in device.xml activation.xml devicesalt; do
   [ -f "$2/$f" ] || { echo "Error : $2/$f doesn't exists"; exit 255; }

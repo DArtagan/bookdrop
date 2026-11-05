@@ -123,9 +123,12 @@ and `cover.jpg` beside nearly every book, and series one level deeper
 Several authors are joined with ` & `, as Calibre joins them; the library's
 sidecars are Calibre's, and its folders show no convention of their own.
 
-Path components are folded to Latin-1 (`’` to `'`, `–` to `-`, `…` to `...`):
-the share the library lives on fails any filename character above U+00FF with
-`EIO`. Characters Windows forbids become `_`, and a trailing dot or space is
+Path components are folded to ASCII (`’` to `'`, `–` to `-`, `é` to `e`,
+`ß` to `ss`). The share the library lives on fails any filename character above
+U+00FF with `EIO` and stores the rest as Latin-1, while the library's older
+accented names are UTF-8 on disk and read through the share as mojibake: on
+2026-11-03 Stump saw `China MiÃ©ville` among 96 such paths. ASCII is spelt
+the same in all three, and stays so when the share moves to UTF-8. Characters Windows forbids become `_`, and a trailing dot or space is
 dropped, as SMB clients cannot round-trip one. The true title stays in the
 metadata. A target that already exists is
 shown on the confirmation screen, never overwritten.

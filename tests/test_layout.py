@@ -18,8 +18,12 @@ from bookdrop.metadata import Metadata
         ("Chapterhouse: Dune", "Chapterhouse - Dune"),
         ("Either/Or", "Either_Or"),
         ("Why?", "Why_"),
-        ("Café Society", "Café Society"),
-        ("Łódź", "Lódz"),
+        ("Café Society", "Cafe Society"),
+        ("China Miéville", "China Mieville"),
+        ("Marie Kondō", "Marie Kondo"),
+        ("Straße", "Strasse"),
+        ("Bjørn Ærø", "Bjorn AEro"),
+        ("Łódź", "Lodz"),
         ("三体", "__"),
         ("The End.", "The End"),
         ("..", "_"),
@@ -29,7 +33,7 @@ from bookdrop.metadata import Metadata
 def test_fold(text, expected):
     folded = fold(text)
     assert folded == expected
-    folded.encode("latin-1")
+    assert folded.isascii()
 
 
 def test_destination_in_a_series():

@@ -15,8 +15,6 @@
   `metadata.opf` and `cover.jpg`. Calibre's `ebook-meta` was the first idea, but
   Calibre is a large dependency for one rewrite of an XML file inside a zip;
   choose deliberately and record why.
-- Latin-1 folding for every path component, with a test for each character
-  the design names.
 - A Stump API key in the deployment's secret, and a scan of the library after
   each filing. The mutation or endpoint that starts a scan was not looked up;
   Stump 0.1.11 is deployed, and its API is GraphQL with some REST routes

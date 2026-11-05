@@ -1,9 +1,11 @@
 import shutil
 import tomllib
 from collections.abc import Callable
+from dataclasses import fields
+from decimal import Decimal, InvalidOperation
 from importlib.metadata import version
 
-from fastapi import FastAPI, Form, UploadFile
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -12,32 +14,42 @@ from bookdrop.adept import Refused, prepare
 from bookdrop.config import Settings
 from bookdrop.metadata import Metadata
 
-EDITABLE = (
-    "title",
-    "series",
-    "series_index",
-    "isbn",
-    "publisher",
-    "date",
-    "description",
-    "language",
-)
+# Every field the screen shows as one text box. Authors are a list, edited as
+# one box joined with "&", so they are handled on their own.
+EDITABLE = tuple(f.name for f in fields(Metadata) if f.name != "authors")
 
 templates = Environment(
     loader=PackageLoader("bookdrop"), autoescape=select_autoescape()
 )
 
 
-def open_library(isbn: str) -> Metadata:
-    with lookup.client() as http:
-        return lookup.open_library(isbn, http)
+def series_problem(meta: Metadata) -> str:
+    """Why the series cannot be filed as it stands, or "" when it can."""
+    if meta.series_index and not meta.series:
+        return "A series number needs a series."
+    if meta.series_index:
+        try:
+            number = Decimal(meta.series_index)
+        except InvalidOperation:
+            number = None
+        # Decimal also reads "NaN" and "Infinity".
+        if number is None or not number.is_finite() or number < 0:
+            return "The series number must be a number, such as 2 or 3.5."
+    return ""
 
 
 def create_app(
     settings: Settings | None = None,
-    find: Callable[[str], Metadata] = open_library,
+    find: Callable[[str, bool], Metadata] | None = None,
 ) -> FastAPI:
+    """The web app. find(isbn, with_authors) looks an ISBN up; tests replace it."""
     settings = settings or Settings()
+
+    def open_library(isbn: str, with_authors: bool) -> Metadata:
+        with lookup.client(settings.contact) as http:
+            return lookup.open_library(isbn, http, with_authors=with_authors)
+
+    find = find or open_library
     app = FastAPI(title="bookdrop")
     aliases_file = settings.data_dir / "authors.toml"
 
@@ -57,7 +69,7 @@ def create_app(
             drop.metadata.authors = authors
             drop.sources["authors"] = "alias"
 
-    def show(drop: drops.Drop, alias_error: str) -> HTMLResponse:
+    def show(drop: drops.Drop, alias_error: str, problem: str = "") -> HTMLResponse:
         destination = layout.destination(drop.metadata, drop.extension)
         return render(
             "drop.html",
@@ -67,6 +79,7 @@ def create_app(
             exists=(settings.books_root / destination.parent).exists(),
             has_cover=metadata.cover(drop.book) is not None,
             alias_error=alias_error,
+            problem=problem,
         )
 
     @app.get("/healthz")
@@ -102,12 +115,12 @@ def create_app(
             own.title = file.filename.rsplit(".", 1)[0]
         # Synchronous on purpose: the confirmation screen is the next thing the
         # person sees, and lookup's timeout bounds the wait.
-        found = find(own.isbn) if own.isbn else Metadata()
+        found = find(own.isbn, not own.authors) if own.isbn else Metadata()
         merged, sources = lookup.fill(own, found)
         record = drops.Drop(
             directory=directory,
             uploaded_as=file.filename or "upload",
-            done=prepared.done,
+            preparation=prepared.preparation,
             book_name=prepared.book.name,
             metadata=merged,
             sources=sources,
@@ -125,46 +138,30 @@ def create_app(
         return show(record, load_aliases()[1])
 
     @app.post("/drops/{drop_id}", response_class=HTMLResponse)
-    def edit(
-        drop_id: str,
-        action: str = Form("update"),
-        title: str = Form(""),
-        authors: str = Form(""),
-        series: str = Form(""),
-        series_index: str = Form(""),
-        isbn: str = Form(""),
-        publisher: str = Form(""),
-        date: str = Form(""),
-        description: str = Form(""),
-        language: str = Form(""),
-    ) -> HTMLResponse:
+    async def edit(drop_id: str, request: Request) -> HTMLResponse:
         record = drops.load(settings.data_dir, drop_id)
         if record is None:
             return render("refused.html", status=404, reason="No such drop.")
-        submitted = {
-            "title": title,
-            "series": series,
-            "series_index": series_index,
-            "isbn": isbn,
-            "publisher": publisher,
-            "date": date,
-            "description": description,
-            "language": language,
-        }
+        form = await request.form()
+
+        def submitted(name: str) -> str:
+            return str(form.get(name, "")).strip()
+
         for name in EDITABLE:
-            value = submitted[name].strip()
+            value = submitted(name)
             if value != getattr(record.metadata, name):
                 setattr(record.metadata, name, value)
                 record.sources[name] = "you"
-        names = [a.strip() for a in authors.split("&") if a.strip()]
+        names = [a.strip() for a in submitted("authors").split("&") if a.strip()]
         if names != record.metadata.authors:
             record.metadata.authors = names
             record.sources["authors"] = "you"
         table, alias_error = load_aliases()
         canonicalise(record, table)
-        record.confirmed = action == "confirm"
+        problem = series_problem(record.metadata)
+        record.confirmed = submitted("action") == "confirm" and not problem
         record.save()
-        return show(record, alias_error)
+        return show(record, alias_error, problem)
 
     @app.get("/drops/{drop_id}/cover")
     def cover(drop_id: str) -> Response:

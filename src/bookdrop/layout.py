@@ -5,8 +5,11 @@ from pathlib import Path, PurePosixPath
 
 from bookdrop.metadata import Metadata
 
-# The share fails any filename character above U+00FF with EIO, so these become
-# their nearest Latin-1 spelling. The true text stays in the metadata.
+# Paths are ASCII. The share's Samba fails any character above U+00FF with EIO
+# and stores the rest as Latin-1, while the library's older accented names are
+# UTF-8 on disk and read through SMB as mojibake ("MiÃ©ville"). ASCII bytes are
+# the same in every one of those encodings, and stay so when the share moves to
+# UTF-8. The true text stays in the metadata.
 FOLDS = str.maketrans(
     {
         "\u2018": "'",
@@ -19,7 +22,16 @@ FOLDS = str.maketrans(
         "\u2015": "-",
         "\u2026": "...",
         "\u00a0": " ",
-        # Letters Unicode does not decompose into a Latin-1 base.
+        # Letters Unicode does not decompose into an ASCII base.
+        "\u00df": "ss",
+        "\u00c6": "AE",
+        "\u00e6": "ae",
+        "\u00d8": "O",
+        "\u00f8": "o",
+        "\u00de": "Th",
+        "\u00fe": "th",
+        "\u00d0": "D",
+        "\u00f0": "d",
         "\u0141": "L",
         "\u0142": "l",
         "\u0110": "D",
@@ -40,7 +52,7 @@ def fold(text: str) -> str:
     text = RESERVED.sub("_", text)
     out = []
     for char in text:
-        if ord(char) <= 0xFF:
+        if char.isascii():
             out.append(char)
             continue
         base = "".join(
@@ -48,7 +60,7 @@ def fold(text: str) -> str:
             for c in unicodedata.normalize("NFKD", char)
             if not unicodedata.combining(c)
         )
-        out.append(base if base and all(ord(c) <= 0xFF for c in base) else "_")
+        out.append(base if base and base.isascii() else "_")
     # Windows and Samba drop a trailing dot or space, so a name ending in one
     # would not round-trip.
     return " ".join("".join(out).split()).rstrip(". ") or "_"

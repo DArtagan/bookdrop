@@ -35,8 +35,8 @@ def looked_up():
 
 @pytest.fixture
 def client(settings, looked_up):
-    def find(isbn: str) -> Metadata:
-        looked_up["asked"].append(isbn)
+    def find(isbn: str, with_authors: bool) -> Metadata:
+        looked_up["asked"].append((isbn, with_authors))
         return looked_up["answers"].get(isbn, Metadata())
 
     return TestClient(create_app(settings, find=find))
@@ -121,7 +121,7 @@ def test_lookup_fills_only_the_gaps(client, tmp_path, looked_up):
     )
     page = client.get(drop(client, tmp_path, metadata=BOOK, version="2.0")).text
     fields = form(page)
-    assert looked_up["asked"] == ["9780441015610"]
+    assert looked_up["asked"] == [("9780441015610", False)]
     assert fields["title"] == "Dune Messiah"
     assert fields["publisher"] == "Ace"
     assert fields["description"] == "A sequel."
@@ -181,9 +181,11 @@ def test_cover(client, tmp_path):
 
 
 def test_drops_survive_a_restart(settings, tmp_path):
-    first = TestClient(create_app(settings, find=lambda isbn: Metadata()))
+    first = TestClient(create_app(settings, find=lambda isbn, with_authors: Metadata()))
     location = drop(first, tmp_path, metadata=BOOK, version="2.0")
-    second = TestClient(create_app(settings, find=lambda isbn: Metadata()))
+    second = TestClient(
+        create_app(settings, find=lambda isbn, with_authors: Metadata())
+    )
     assert "Dune Messiah" in second.get("/").text
     assert "<h1>Dune Messiah</h1>" in second.get(location).text
 
@@ -211,8 +213,40 @@ def test_drop_of_an_acsm(client, settings, tmp_path, tools, adept_dir, monkeypat
             books_root=settings.books_root,
             adept_dir=adept_dir,
         ),
-        find=lambda isbn: Metadata(),
+        find=lambda isbn, with_authors: Metadata(),
     )
     response = TestClient(app).post("/drop", files={"file": ("URLLink.acsm", ACSM)})
     assert "<h1>Real Title</h1>" in response.text
     assert "Downloaded from the store, DRM removed." in response.text
+
+
+@pytest.mark.parametrize(
+    ("series", "index", "problem"),
+    [
+        ("Dune", "two", "must be a number"),
+        ("Dune", "NaN", "must be a number"),
+        ("Dune", "-1", "must be a number"),
+        ("", "2", "needs a series"),
+    ],
+)
+def test_confirm_refuses_an_unfileable_series(client, tmp_path, series, index, problem):
+    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
+    fields = form(client.get(location).text) | {"series": series, "series_index": index}
+
+    page = client.post(location, data=fields | {"action": "confirm"}).text
+
+    assert "Not confirmed: " in page and problem in page
+    assert "Confirmed." not in page
+
+
+def test_confirm_takes_a_fractional_series_number(client, tmp_path):
+    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
+    fields = form(client.get(location).text) | {"series": "Dune", "series_index": "3.5"}
+    page = client.post(location, data=fields | {"action": "confirm"}).text
+    assert "Confirmed." in page
+
+
+def test_authors_are_looked_up_only_when_the_book_has_none(client, tmp_path, looked_up):
+    no_authors = "<dc:title>T</dc:title><dc:identifier opf:scheme='ISBN'>9780441015610</dc:identifier>"
+    drop(client, tmp_path, metadata=no_authors, version="2.0")
+    assert looked_up["asked"] == [("9780441015610", True)]
