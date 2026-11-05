@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/DArtagan/bookdrop/compare/v0.2.2...v0.3.0) (2026-11-05)
+
+
+### Features
+
+* confirm a dropped book's metadata before filing ([#13](https://github.com/DArtagan/bookdrop/issues/13)) ([8fbad67](https://github.com/DArtagan/bookdrop/commit/8fbad67fd35fb5931b11151383eacca95b3d46e3))
+
+
+### Documentation
+
+* let a pull request's title decide how it is merged ([#11](https://github.com/DArtagan/bookdrop/issues/11)) ([9d32ace](https://github.com/DArtagan/bookdrop/commit/9d32ace7e1ff6acda3b41c2e07e583e296995eb6))
+
 ## [0.2.2](https://github.com/DArtagan/bookdrop/compare/v0.2.1...v0.2.2) (2026-11-03)
 
 
