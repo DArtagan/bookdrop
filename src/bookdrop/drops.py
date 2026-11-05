@@ -23,6 +23,9 @@ class Drop:
     metadata: Metadata = field(default_factory=Metadata)
     # Where each field's value came from: "book", "Open Library", "alias", "you".
     sources: dict[str, str] = field(default_factory=dict)
+    # What the last Open Library lookup came to, said to the person.
+    lookup: str = ""
+    lookup_failed: bool = False
     confirmed: bool = False
     created: str = ""
 

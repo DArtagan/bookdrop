@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from bookdrop.lookup import _date, _series, fill, open_library
+from bookdrop.lookup import LookupFailed, _date, _series, fill, open_library
 from bookdrop.metadata import Metadata
 
 # Shaped as Open Library answered for the first Kobo purchase on 2026-11-03.
@@ -61,16 +61,28 @@ def test_open_library_record():
 
 
 @pytest.mark.parametrize(
-    "failure",
-    [500, httpx.ConnectTimeout("slow"), httpx.ConnectError("unreachable")],
+    ("failure", "said"),
+    [
+        (500, "HTTPStatusError"),
+        (httpx.ConnectTimeout("timed out"), "ConnectTimeout: timed out"),
+        (httpx.ConnectError("unreachable"), "ConnectError: unreachable"),
+        (["not", "an", "edition"], "could not read"),
+    ],
 )
-def test_failure_is_an_empty_answer(failure):
+def test_a_failure_is_raised_not_mistaken_for_no_record(failure, said):
     http = client({"/isbn/1.json": failure})
-    assert open_library("1", http) == Metadata()
+    with pytest.raises(LookupFailed, match=said):
+        open_library("1", http)
 
 
-def test_unknown_isbn_is_an_empty_answer():
-    assert open_library("1", client({})) == Metadata()
+def test_a_failure_fetching_the_work_is_raised_too():
+    http = client({"/isbn/1.json": EDITION, "/works/OL1W.json": 503})
+    with pytest.raises(LookupFailed):
+        open_library("1", http)
+
+
+def test_unknown_isbn_is_no_record():
+    assert open_library("1", client({})) is None
 
 
 @pytest.mark.parametrize(
@@ -98,6 +110,20 @@ def test_series(entry, expected):
 )
 def test_date(text, expected):
     assert _date(text) == expected
+
+
+def test_fill_keeps_each_values_source():
+    current = Metadata(title="Typed", publisher="Theirs")
+    found = Metadata(title="Other", publisher="X", date="2021")
+    merged, sources = fill(
+        current, found, {"title": "you", "publisher": "Open Library"}
+    )
+    assert (merged.title, merged.publisher, merged.date) == ("Typed", "Theirs", "2021")
+    assert sources == {
+        "title": "you",
+        "publisher": "Open Library",
+        "date": "Open Library",
+    }
 
 
 def test_fill_keeps_the_books_own_values():
