@@ -26,6 +26,13 @@ class Drop:
     # What the last Open Library lookup came to, said to the person.
     lookup: str = ""
     lookup_failed: bool = False
+    # What confirming would write, or has written, each relative to the books root.
+    planned: list[str] = field(default_factory=list)
+    # The directory the book was filed into, once it has been.
+    filed: str = ""
+    # What came of asking Stump to scan, said to the person.
+    scan: str = ""
+    scan_failed: bool = False
     confirmed: bool = False
     created: str = ""
 

@@ -1,3 +1,4 @@
+import os
 import re
 
 import pytest
@@ -239,7 +240,7 @@ def test_confirm_refuses_an_unfileable_series(client, tmp_path, series, index, p
 
     page = client.post(location, data=fields | {"action": "confirm"}).text
 
-    assert "Not confirmed: " in page and problem in page
+    assert "Not filed: " in page and problem in page
     assert "Confirmed." not in page
 
 
@@ -341,3 +342,111 @@ def test_look_up_again_uses_a_corrected_isbn(client, tmp_path, looked_up):
     page = client.post(location, data=fields | {"action": "lookup"}).text
     assert looked_up["asked"] == ["9780441015610", "9780765376671"]
     assert form(page)["publisher"] == "Tor"
+
+
+@pytest.fixture
+def scans():
+    """Calls to the Stump scan, and what the next one raises, if anything."""
+    return {"calls": 0, "raise": None}
+
+
+@pytest.fixture
+def live(settings, scans):
+    def scan() -> None:
+        scans["calls"] += 1
+        if scans["raise"]:
+            raise scans["raise"]
+
+    live_settings = settings.model_copy(update={"dry_run": False})
+    return TestClient(create_app(live_settings, find=lambda isbn: None, scan=scan))
+
+
+def file_it(client, location):
+    fields = form(client.get(location).text)
+    return client.post(location, data=fields | {"action": "confirm"}).text
+
+
+def test_dry_run_confirm_shows_what_would_be_written(client, settings, tmp_path):
+    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
+    page = file_it(client, location)
+    assert "Dry run is on, so nothing was written" in page
+    assert "<code>Frank Herbert/Dune Messiah/Dune Messiah.epub</code>" in page
+    assert "<code>Frank Herbert/Dune Messiah/metadata.opf</code>" in page
+    assert list(settings.books_root.iterdir()) == []
+
+
+def test_filing_writes_the_book_and_asks_stump_to_scan(live, settings, tmp_path, scans):
+    location = drop(live, tmp_path, metadata=BOOK, version="2.0")
+    page = file_it(live, location)
+
+    folder = settings.books_root / "Frank Herbert" / "Dune Messiah"
+    assert sorted(p.name for p in folder.iterdir()) == [
+        "Dune Messiah.epub",
+        "metadata.opf",
+    ]
+    assert "Filed to <code>Frank Herbert/Dune Messiah</code>" in page
+    assert "Stump is scanning the library" in page
+    assert scans["calls"] == 1
+    assert "Filed · dropped" in live.get("/").text
+
+
+def test_a_filed_drop_keeps_its_record_not_its_copy(live, settings, tmp_path):
+    location = drop(live, tmp_path, metadata=BOOK, version="2.0")
+    file_it(live, location)
+    (drop_dir,) = (settings.data_dir / "drops").iterdir()
+    assert [p.name for p in drop_dir.iterdir()] == ["drop.json"]
+    page = live.post(location, data={"title": "Changed", "action": "confirm"}).text
+    assert "<h1>Dune Messiah</h1>" in page
+    assert live.get(f"{location}/cover").status_code == 404
+
+
+def test_a_failed_scan_is_shown_and_the_book_stays_filed(
+    live, settings, tmp_path, scans
+):
+    from bookdrop.stump import ScanFailed
+
+    scans["raise"] = ScanFailed("ConnectError: refused")
+    page = file_it(live, drop(live, tmp_path, metadata=BOOK, version="2.0"))
+    assert (
+        'class="warn">Stump could not be asked to scan: ConnectError: refused' in page
+    )
+    assert (settings.books_root / "Frank Herbert" / "Dune Messiah").is_dir()
+
+
+def test_an_existing_book_is_not_filed_over(live, settings, tmp_path, scans):
+    existing = settings.books_root / "Frank Herbert" / "Dune Messiah"
+    existing.mkdir(parents=True)
+    page = file_it(live, drop(live, tmp_path, metadata=BOOK, version="2.0"))
+    assert "Not filed: A book is already at Frank Herbert/Dune Messiah." in page
+    assert list(existing.iterdir()) == []
+    assert scans["calls"] == 0
+
+
+def test_nothing_but_the_executor_writes_under_the_books_root(
+    settings, tmp_path, looked_up, monkeypatch
+):
+    # Root ignores permissions, which would make this pass whatever the code did.
+    if os.geteuid() == 0:
+        pytest.skip("runs as root")
+    written = []
+    monkeypatch.setattr(
+        "bookdrop.executor.Executor.file", lambda self, plan: written.append(plan)
+    )
+    looked_up["answers"]["9780441015610"] = Metadata(publisher="Ace")
+    live_settings = settings.model_copy(update={"dry_run": False})
+    app = TestClient(
+        create_app(live_settings, find=lambda isbn: None, scan=lambda: None)
+    )
+    settings.books_root.chmod(0o555)
+    try:
+        location = drop(app, tmp_path, metadata=BOOK, version="2.0")
+        fields = form(app.get(location).text)
+        for action in ("update", "lookup", "confirm"):
+            assert (
+                app.post(location, data=fields | {"action": action}).status_code == 200
+            )
+        app.get("/")
+        app.get(f"{location}/cover")
+    finally:
+        settings.books_root.chmod(0o755)
+    assert len(written) == 1

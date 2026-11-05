@@ -12,15 +12,20 @@
 <h1>{{ meta.title or "Untitled" }}</h1>
 <p class="note">{{ drop.preparation }}</p>
 {% if drop.lookup %}<p class="{{ 'warn' if drop.lookup_failed else 'note' }}">{{ drop.lookup }}
-  {%- if meta.isbn %} <button form="edit" name="action" value="lookup">Look up again</button>{% endif %}</p>{% endif %}
+  {%- if meta.isbn and not drop.filed %} <button form="edit" name="action" value="lookup">Look up again</button>{% endif %}</p>{% endif %}
 {% if alias_error %}<p class="warn">authors.toml could not be read, so no aliases apply: {{ alias_error }}</p>{% endif %}
 
+{% if drop.filed %}
+<p class="note">Filed to <code>{{ drop.filed }}</code>:</p>
+<ul>{% for path in drop.planned %}<li><code>{{ path.rsplit("/", 1)[-1] }}</code></li>{% endfor %}</ul>
+<p class="{{ 'warn' if drop.scan_failed else 'note' }}">{{ drop.scan }}</p>
+{% else %}
 <p>Files to <code>{{ destination }}</code></p>
-{% if problem %}<p class="warn">Not confirmed: {{ problem }}</p>{% endif %}
+{% if problem %}<p class="warn">Not filed: {{ problem }}</p>{% endif %}
 {% if exists %}<p class="warn">A book is already at this path. It will not be overwritten.</p>{% endif %}
-
-{% if drop.confirmed %}
-<p class="note">Confirmed. bookdrop does not file books yet, so nothing has been written to the library.</p>
+{% if drop.confirmed and dry_run %}
+<p class="note">Confirmed. Dry run is on, so nothing was written; filing would write:</p>
+<ul>{% for path in drop.planned %}<li><code>{{ path }}</code></li>{% endfor %}</ul>
 {% endif %}
 
 <form id="edit" method="post" action="/drops/{{ drop.id }}">
@@ -40,8 +45,9 @@
   {{ field("genres", "Genres, one a line", meta.genres | join("\n"), multiline=True) }}
   <div class="row">
     <button name="action" value="update">Update path</button>
-    <button class="primary" name="action" value="confirm">Confirm</button>
+    <button class="primary" name="action" value="confirm">{{ "Confirm" if dry_run else "File it" }}</button>
   </div>
 </form>
+{% endif %}
 <p class="muted">Several authors are separated by &amp;. Uploaded as {{ drop.uploaded_as }}.</p>
 {% endblock %}
