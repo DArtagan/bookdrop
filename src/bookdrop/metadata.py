@@ -40,17 +40,23 @@ class Metadata:
         return cls(**{k: v for k, v in data.items() if k in names})
 
 
+class Unreadable(Exception):
+    """An EPUB whose metadata or cover cannot be read, with why."""
+
+
 def read(book: Path) -> Metadata:
-    """What the book says about itself. Empty for anything but a readable EPUB."""
-    opf = _opf(book)
-    if opf is None:
+    """What the book says about itself; nothing, for a PDF, which has no OPF.
+
+    Raises Unreadable for an EPUB whose OPF cannot be read.
+    """
+    if not _is_epub(book):
         return Metadata()
-    package, _ = opf
+    package, _ = _opf(book)
     meta = package.find(f"{OPF}metadata")
     if meta is None:
         meta = package.find("metadata")
     if meta is None:
-        return Metadata()
+        raise Unreadable("its OPF has no metadata")
     refines = _refinements(meta)
     series, index = _series(meta, refines)
     return Metadata(
@@ -70,11 +76,15 @@ def read(book: Path) -> Metadata:
 
 
 def cover(book: Path) -> tuple[bytes, str] | None:
-    """The cover image's bytes and media type, as the OPF names it."""
-    opf = _opf(book)
-    if opf is None:
+    """The cover image's bytes and media type, as the OPF names it; None when
+    it names none, or the book is a PDF.
+
+    Raises Unreadable for an EPUB whose OPF cannot be read, or whose cover is
+    named but missing.
+    """
+    if not _is_epub(book):
         return None
-    package, opf_path = opf
+    package, opf_path = _opf(book)
     manifest = package.find(f"{OPF}manifest")
     if manifest is None:
         return None
@@ -99,20 +109,32 @@ def cover(book: Path) -> tuple[bytes, str] | None:
         with zipfile.ZipFile(book) as z:
             return z.read(href), item.get("media-type")
     except KeyError:
-        return None
+        raise Unreadable(f"its cover, {href}, is not in it") from None
 
 
-def _opf(book: Path) -> tuple[ET.Element, str] | None:
+def _is_epub(book: Path) -> bool:
+    # The prepared book's name carries the kind adept.kind found by content.
+    return book.suffix.lower() == ".epub"
+
+
+def _opf(book: Path) -> tuple[ET.Element, str]:
     try:
         with zipfile.ZipFile(book) as z:
             container = ET.fromstring(z.read("META-INF/container.xml"))
             rootfile = next(
-                e for e in container.iter() if e.tag.rsplit("}", 1)[-1] == "rootfile"
+                (e for e in container.iter() if e.tag.rsplit("}", 1)[-1] == "rootfile"),
+                None,
             )
+            if rootfile is None:
+                raise Unreadable("its container names no OPF")
             path = rootfile.get("full-path", "")
             return ET.fromstring(z.read(path)), path
-    except zipfile.BadZipFile, KeyError, StopIteration, ET.ParseError:
-        return None
+    except zipfile.BadZipFile as error:
+        raise Unreadable(f"it is not a readable zip ({error})") from error
+    except KeyError as error:
+        raise Unreadable(f"it lacks {error}") from error
+    except ET.ParseError as error:
+        raise Unreadable(f"its XML is broken ({error})") from error
 
 
 def _text(element: ET.Element | None) -> str:

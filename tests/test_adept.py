@@ -134,3 +134,12 @@ def test_encrypted_epub_upload_is_stripped(
     prepared = prepare(drm_epub(tmp_path / "upload"), out_dir, adept_dir)
     assert not encrypted(prepared.book, "epub")
     assert prepared.preparation == "DRM removed."
+
+
+def test_a_tool_that_hangs_is_refused(tmp_path, out_dir, tools, adept_dir, monkeypatch):
+    (tools / "acsmdownloader").write_text("#!/bin/sh\nsleep 5\n")
+    monkeypatch.setattr("bookdrop.adept.TOOL_TIMEOUT", 0.2)
+    acsm = tmp_path / "URLLink.acsm"
+    acsm.write_text(ACSM)
+    with pytest.raises(Refused, match="did not finish within 0.2 seconds"):
+        prepare(acsm, out_dir, adept_dir)

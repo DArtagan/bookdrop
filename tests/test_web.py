@@ -453,12 +453,33 @@ def test_nothing_but_the_executor_writes_under_the_books_root(
 
 
 def test_a_book_that_cannot_be_prepared_is_not_filed(live, settings, tmp_path, scans):
-    location = drop(live, tmp_path, metadata=BOOK, version="2.0")
-    (drop_dir,) = (settings.data_dir / "drops").iterdir()
-    (drop_dir / "book.epub").write_bytes(b"PK\x03\x04 no longer a zip")
+    location = drop(
+        live,
+        tmp_path,
+        metadata=BOOK + "<meta name='cover' content='c'/>",
+        manifest="<item id='c' href='c.png' media-type='image/png'/>",
+        files={"OEBPS/c.png": b"\x89PNG not really"},
+        version="2.0",
+    )
 
     page = file_it(live, location)
 
     assert "Not filed: The book could not be prepared for filing:" in page
     assert list(settings.books_root.iterdir()) == []
     assert scans["calls"] == 0
+
+
+def test_a_broken_epub_is_refused_at_upload_saying_why(client, settings):
+    import io
+    import zipfile
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr(
+            zipfile.ZipInfo("mimetype", (2020, 1, 1, 0, 0, 0)), "application/epub+zip"
+        )
+    response = client.post("/drop", files={"file": ("broken.epub", out.getvalue())})
+
+    assert response.status_code == 422
+    assert "The book could not be read: it lacks" in response.text
+    assert list((settings.data_dir / "drops").iterdir()) == []

@@ -13,7 +13,7 @@
 <p class="note">{{ drop.preparation }}</p>
 {% if drop.lookup %}<p class="{{ 'warn' if drop.lookup_failed else 'note' }}">{{ drop.lookup }}
   {%- if meta.isbn and not drop.filed %} <button form="edit" name="action" value="lookup">Look up again</button>{% endif %}</p>{% endif %}
-{% if alias_error %}<p class="warn">authors.toml could not be read, so no aliases apply: {{ alias_error }}</p>{% endif %}
+{% if alias_error %}<p class="warn">{{ alias_error }}, so no aliases apply.</p>{% endif %}
 
 {% if drop.filed %}
 <p class="note">Filed to <code>{{ drop.filed }}</code>:</p>

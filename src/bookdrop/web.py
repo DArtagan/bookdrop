@@ -1,9 +1,7 @@
 import logging
 import shutil
-import tomllib
 from collections.abc import Callable
 from dataclasses import fields
-from decimal import Decimal, InvalidOperation
 from importlib.metadata import version
 
 import httpx
@@ -17,7 +15,7 @@ from bookdrop.config import Settings
 from bookdrop.executor import Executor
 from bookdrop.filing import FilingError
 from bookdrop.lookup import LookupFailed
-from bookdrop.metadata import Metadata, normalise_isbn
+from bookdrop.metadata import Metadata
 
 log = logging.getLogger(__name__)
 
@@ -29,27 +27,6 @@ EDITABLE = tuple(f.name for f in fields(Metadata) if f.name not in LISTS)
 templates = Environment(
     loader=PackageLoader("bookdrop"), autoescape=select_autoescape()
 )
-
-
-def problem(meta: Metadata) -> str:
-    """Why the book cannot be filed as it stands, or "" when it can."""
-    if not meta.title:
-        return "A book needs a title."
-    if not meta.authors:
-        return "A book needs at least one author."
-    if meta.isbn and not normalise_isbn(meta.isbn):
-        return "The ISBN's check digit is wrong; correct it or clear it."
-    if meta.series_index and not meta.series:
-        return "A series number needs a series."
-    if meta.series_index:
-        try:
-            number = Decimal(meta.series_index)
-        except InvalidOperation:
-            number = None
-        # Decimal also reads "NaN" and "Infinity".
-        if number is None or not number.is_finite() or number < 0:
-            return "The series number must be a number, such as 2 or 3.5."
-    return ""
 
 
 def create_app(
@@ -89,12 +66,6 @@ def create_app(
         page = templates.get_template(name).render(**context)
         return HTMLResponse(page, status_code=status)
 
-    def load_aliases() -> tuple[dict[str, str], str]:
-        try:
-            return layout.aliases(aliases_file), ""
-        except (tomllib.TOMLDecodeError, OSError) as error:
-            return {}, str(error)
-
     def look_up(record: drops.Drop) -> None:
         """Fill the record's gaps from Open Library, and say what came of it."""
         isbn = record.metadata.isbn
@@ -126,7 +97,13 @@ def create_app(
             else "Open Library had nothing the book lacks."
         )
 
-    def canonicalise(drop: drops.Drop, table: dict[str, str]) -> None:
+    def canonicalise(drop: drops.Drop) -> None:
+        """Map the drop's authors through the alias table."""
+        try:
+            table = layout.aliases(aliases_file)
+        except layout.AliasesUnreadable:
+            # The book goes on without aliases; show() says why on the page.
+            return
         authors = layout.canonical(drop.metadata.authors, table)
         if authors != drop.metadata.authors:
             drop.metadata.authors = authors
@@ -169,7 +146,12 @@ def create_app(
             )
             record.scan_failed = False
 
-    def show(drop: drops.Drop, alias_error: str, reason: str = "") -> HTMLResponse:
+    def show(drop: drops.Drop, reason: str = "") -> HTMLResponse:
+        try:
+            layout.aliases(aliases_file)
+            alias_error = ""
+        except layout.AliasesUnreadable as error:
+            alias_error = str(error)
         destination = layout.destination(drop.metadata, drop.extension)
         return render(
             "drop.html",
@@ -212,7 +194,18 @@ def create_app(
             if leftover != prepared.book:
                 leftover.unlink()
 
-        own = metadata.read(prepared.book)
+        try:
+            own = metadata.read(prepared.book)
+            # Read now, so a broken book is refused here rather than failing
+            # every page that later shows it.
+            metadata.cover(prepared.book)
+        except metadata.Unreadable as error:
+            drops.discard(directory)
+            return render(
+                "refused.html",
+                status=422,
+                reason=f"The book could not be read: {error}.",
+            )
         record = drops.Drop(
             directory=directory,
             uploaded_as=file.filename or "upload",
@@ -225,7 +218,7 @@ def create_app(
         # Synchronous on purpose: the confirmation screen is the next thing the
         # person sees, and lookup's timeout bounds the wait.
         look_up(record)
-        canonicalise(record, load_aliases()[0])
+        canonicalise(record)
         record.save()
         return RedirectResponse(f"/drops/{record.id}", status_code=303)
 
@@ -234,7 +227,7 @@ def create_app(
         record = drops.load(settings.data_dir, drop_id)
         if record is None:
             return render("refused.html", status=404, reason="No such drop.")
-        return show(record, load_aliases()[1])
+        return show(record)
 
     @app.post("/drops/{drop_id}", response_class=HTMLResponse)
     async def edit(drop_id: str, request: Request) -> HTMLResponse:
@@ -242,7 +235,7 @@ def create_app(
         if record is None:
             return render("refused.html", status=404, reason="No such drop.")
         if record.filed:
-            return show(record, load_aliases()[1])
+            return show(record)
         form = await request.form()
 
         def submitted(name: str) -> str:
@@ -260,10 +253,9 @@ def create_app(
                 record.sources[name] = "you"
         if submitted("action") == "lookup":
             look_up(record)
-        table, alias_error = load_aliases()
-        canonicalise(record, table)
-        reason = problem(record.metadata)
-        record.confirmed = submitted("action") == "confirm" and not reason
+        canonicalise(record)
+        reason = ""
+        record.confirmed = submitted("action") == "confirm"
         record.planned = []
         if record.confirmed:
             try:
@@ -282,7 +274,7 @@ def create_app(
                 if record.filed:
                     ask_stump(record)
         record.save()
-        return show(record, alias_error, reason)
+        return show(record, reason)
 
     @app.get("/drops/{drop_id}/cover")
     def cover(drop_id: str) -> Response:

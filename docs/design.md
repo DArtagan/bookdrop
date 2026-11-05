@@ -39,7 +39,9 @@ Made by Will on 2026-11-03, recorded so they are not relitigated:
 | anything else | refused, saying why |
 
 A file still encrypted after `adept_remove` is refused: nothing DRM-locked
-enters the library. Kobo sells some titles as Adobe PDF; the PDF is kept, and
+enters the library. So is an EPUB whose OPF or named cover cannot be read,
+saying what is wrong with it, rather than arriving with blank fields that look
+like a book that says nothing about itself. Kobo sells some titles as Adobe PDF; the PDF is kept, and
 converting it to EPUB waits until a purchase needs it.
 
 An `.acsm` is not the book but a one-time claim on it. It carries an expiry,
