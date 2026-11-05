@@ -46,8 +46,9 @@ An `.acsm` is not the book but a one-time claim on it. It carries an expiry,
 hours after the purchase, and the first Adobe identity to fulfil it owns the
 download. bookdrop fulfils one as soon as it arrives. Until it expires, the same
 `.acsm` can be fulfilled again against the same device: Kobo's served the book
-a second and third time on 2026-11-03. Whether Kobo serves a fresh `.acsm` from
-the account's library once one has lapsed was not checked.
+a second and third time on 2026-11-03. Once one has lapsed, the account's library
+on Kobo serves a fresh one: two days after the first expired, a new `.acsm` for
+the same book fulfilled against the same device.
 
 ### What it does not accept
 
@@ -89,6 +90,8 @@ Read from the book's OPF, EPUB 2 or 3, including Calibre's series. A Kobo EPUB
 may carry its ISBN only as `dc:source`, the print edition it was made from, with
 `dc:identifier` a UUID; both are read, and an ISBN counts only when its check
 digit holds.
+Whether Kobo writes series metadata is not yet known: its first purchase, on
+2026-11-03, was a standalone book.
 
 With an ISBN, Open Library fills the fields the book leaves empty, never
 overriding one it has. It needs no key and answered in two to four seconds on
