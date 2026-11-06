@@ -19,9 +19,8 @@ mode switch adds none.
 
 ## When
 
-After `filing` closes: books filed for real, seen in Stump, and its spec
-retired. Not before, since dry run is what keeps the deployed instance safe
-while the books volume is still read-only.
+Now. `filing` closed on 2026-11-06, with the first book filed for real and
+read in Stump, and the deployment out of dry run.
 
 ## What goes
 
