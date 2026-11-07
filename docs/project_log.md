@@ -9,3 +9,4 @@ request(s). It is the registry that stops a retired slug from being reused.
 | adept | 2026-11-03 | #5, #7, #9 |
 | confirm | 2026-11-05 | #13, #14, #16 |
 | filing | 2026-11-06 | #17, #19 |
+| remove-dry-run | 2026-11-07 | #20 |
