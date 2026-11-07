@@ -11,14 +11,11 @@ name the sections they depend on rather than restating them.
 
 ## In order
 
-Dry run is off in the deployment since filing went live, on 2026-11-06, and
-its code goes with remove-dry-run.
 Specs are referred to by name, not number, so finishing one renumbers nothing.
 
 | # | spec | what | needs |
 |---|---|---|---|
 | 1 | [share-target](share-target.md) | An installable PWA, so a phone's share sheet sends the download straight in | — |
-| 2 | [remove-dry-run](remove-dry-run.md) | Take the dry-run mode out of code, docs and deployment now filing is live, keeping the single writer | — |
 
 ## Writing a spec
 

@@ -37,7 +37,13 @@ def looked_up():
 
 
 @pytest.fixture
-def client(settings, looked_up):
+def scans():
+    """Calls to the Stump scan, and what the next one raises, if anything."""
+    return {"calls": 0, "raise": None}
+
+
+@pytest.fixture
+def client(settings, looked_up, scans):
     def find(isbn: str) -> Metadata | None:
         looked_up["asked"].append(isbn)
         answer = looked_up["answers"].get(isbn)
@@ -45,7 +51,12 @@ def client(settings, looked_up):
             raise answer
         return answer
 
-    return TestClient(create_app(settings, find=find))
+    def scan() -> None:
+        scans["calls"] += 1
+        if scans["raise"]:
+            raise scans["raise"]
+
+    return TestClient(create_app(settings, find=find, scan=scan))
 
 
 def drop(client, tmp_path, **epub) -> str:
@@ -64,24 +75,10 @@ def form(page: str) -> dict[str, str]:
     return fields
 
 
-def test_dry_run_unless_disabled(monkeypatch):
-    monkeypatch.delenv("BOOKDROP_DRY_RUN", raising=False)
-    assert Settings().dry_run is True
-
-
-def test_dry_run_disabled_explicitly(monkeypatch):
-    monkeypatch.setenv("BOOKDROP_DRY_RUN", "false")
-    assert Settings().dry_run is False
-
-
-def test_healthz_reports_mode(client):
+def test_healthz(client):
     response = client.get("/healthz")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "dry_run": True}
-
-
-def test_index_states_dry_run(client):
-    assert "nothing in the library is changed" in client.get("/").text
+    assert response.json() == {"status": "ok"}
 
 
 def test_file_picker_filters_nothing(client):
@@ -105,18 +102,7 @@ def test_an_edit_to_the_series_changes_the_destination(client, tmp_path):
 
     assert "<code>Frank Herbert/Dune/Dune Messiah/Dune Messiah.epub</code>" in page
     assert "from you" in page
-    assert "Confirmed." not in page
-
-
-def test_confirm_is_recorded_and_files_nothing(client, settings, tmp_path):
-    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
-    fields = form(client.get(location).text)
-
-    page = client.post(location, data=fields | {"action": "confirm"}).text
-
-    assert "Confirmed." in page
-    assert list(settings.books_root.iterdir()) == []
-    assert "Confirmed · dropped" in client.get("/").text
+    assert "Filed to" not in page
 
 
 def test_lookup_fills_only_the_gaps(client, tmp_path, looked_up):
@@ -231,7 +217,9 @@ def test_drop_of_an_acsm(client, settings, tmp_path, tools, adept_dir, monkeypat
         ("", "2", "needs a series"),
     ],
 )
-def test_confirm_refuses_an_unfileable_series(client, tmp_path, series, index, problem):
+def test_confirm_refuses_an_unfileable_series(
+    client, settings, tmp_path, series, index, problem
+):
     location = drop(client, tmp_path, metadata=BOOK, version="2.0")
     fields = form(client.get(location).text) | {
         "series": series,
@@ -241,14 +229,14 @@ def test_confirm_refuses_an_unfileable_series(client, tmp_path, series, index, p
     page = client.post(location, data=fields | {"action": "confirm"}).text
 
     assert "Not filed: " in page and problem in page
-    assert "Confirmed." not in page
+    assert list(settings.books_root.iterdir()) == []
 
 
 def test_confirm_takes_a_fractional_series_number(client, tmp_path):
     location = drop(client, tmp_path, metadata=BOOK, version="2.0")
     fields = form(client.get(location).text) | {"series": "Dune", "series_index": "3.5"}
     page = client.post(location, data=fields | {"action": "confirm"}).text
-    assert "Confirmed." in page
+    assert "Filed to <code>Frank Herbert/Dune/Dune Messiah</code>" in page
 
 
 def test_genres_are_edited_one_a_line(client, tmp_path):
@@ -279,14 +267,16 @@ def test_genres_are_edited_one_a_line(client, tmp_path):
         ({"isbn": "9780441015611"}, "check digit is wrong"),
     ],
 )
-def test_confirm_refuses_a_book_it_cannot_file(client, tmp_path, change, problem):
+def test_confirm_refuses_a_book_it_cannot_file(
+    client, settings, tmp_path, change, problem
+):
     location = drop(client, tmp_path, metadata=BOOK, version="2.0")
     fields = form(client.get(location).text) | change
 
     page = client.post(location, data=fields | {"action": "confirm"}).text
 
     assert problem in page
-    assert "Confirmed." not in page
+    assert list(settings.books_root.iterdir()) == []
 
 
 def test_a_book_without_a_title_is_not_named_after_its_upload(client, tmp_path):
@@ -344,40 +334,16 @@ def test_look_up_again_uses_a_corrected_isbn(client, tmp_path, looked_up):
     assert form(page)["publisher"] == "Tor"
 
 
-@pytest.fixture
-def scans():
-    """Calls to the Stump scan, and what the next one raises, if anything."""
-    return {"calls": 0, "raise": None}
-
-
-@pytest.fixture
-def live(settings, scans):
-    def scan() -> None:
-        scans["calls"] += 1
-        if scans["raise"]:
-            raise scans["raise"]
-
-    live_settings = settings.model_copy(update={"dry_run": False})
-    return TestClient(create_app(live_settings, find=lambda isbn: None, scan=scan))
-
-
 def file_it(client, location):
     fields = form(client.get(location).text)
     return client.post(location, data=fields | {"action": "confirm"}).text
 
 
-def test_dry_run_confirm_shows_what_would_be_written(client, settings, tmp_path):
+def test_filing_writes_the_book_and_asks_stump_to_scan(
+    client, settings, tmp_path, scans
+):
     location = drop(client, tmp_path, metadata=BOOK, version="2.0")
     page = file_it(client, location)
-    assert "Dry run is on, so nothing was written" in page
-    assert "<code>Frank Herbert/Dune Messiah/Dune Messiah.epub</code>" in page
-    assert "<code>Frank Herbert/Dune Messiah/metadata.opf</code>" in page
-    assert list(settings.books_root.iterdir()) == []
-
-
-def test_filing_writes_the_book_and_asks_stump_to_scan(live, settings, tmp_path, scans):
-    location = drop(live, tmp_path, metadata=BOOK, version="2.0")
-    page = file_it(live, location)
 
     folder = settings.books_root / "Frank Herbert" / "Dune Messiah"
     assert sorted(p.name for p in folder.iterdir()) == [
@@ -387,36 +353,36 @@ def test_filing_writes_the_book_and_asks_stump_to_scan(live, settings, tmp_path,
     assert "Filed to <code>Frank Herbert/Dune Messiah</code>" in page
     assert "Stump is scanning the library" in page
     assert scans["calls"] == 1
-    assert "Filed · dropped" in live.get("/").text
+    assert "Filed · dropped" in client.get("/").text
 
 
-def test_a_filed_drop_keeps_its_record_not_its_copy(live, settings, tmp_path):
-    location = drop(live, tmp_path, metadata=BOOK, version="2.0")
-    file_it(live, location)
+def test_a_filed_drop_keeps_its_record_not_its_copy(client, settings, tmp_path):
+    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
+    file_it(client, location)
     (drop_dir,) = (settings.data_dir / "drops").iterdir()
     assert [p.name for p in drop_dir.iterdir()] == ["drop.json"]
-    page = live.post(location, data={"title": "Changed", "action": "confirm"}).text
+    page = client.post(location, data={"title": "Changed", "action": "confirm"}).text
     assert "<h1>Dune Messiah</h1>" in page
-    assert live.get(f"{location}/cover").status_code == 404
+    assert client.get(f"{location}/cover").status_code == 404
 
 
 def test_a_failed_scan_is_shown_and_the_book_stays_filed(
-    live, settings, tmp_path, scans
+    client, settings, tmp_path, scans
 ):
     from bookdrop.stump import ScanFailed
 
     scans["raise"] = ScanFailed("ConnectError: refused")
-    page = file_it(live, drop(live, tmp_path, metadata=BOOK, version="2.0"))
+    page = file_it(client, drop(client, tmp_path, metadata=BOOK, version="2.0"))
     assert (
         'class="warn">Stump could not be asked to scan: ConnectError: refused' in page
     )
     assert (settings.books_root / "Frank Herbert" / "Dune Messiah").is_dir()
 
 
-def test_an_existing_book_is_not_filed_over(live, settings, tmp_path, scans):
+def test_an_existing_book_is_not_filed_over(client, settings, tmp_path, scans):
     existing = settings.books_root / "Frank Herbert" / "Dune Messiah"
     existing.mkdir(parents=True)
-    page = file_it(live, drop(live, tmp_path, metadata=BOOK, version="2.0"))
+    page = file_it(client, drop(client, tmp_path, metadata=BOOK, version="2.0"))
     assert "Not filed: A book is already at Frank Herbert/Dune Messiah." in page
     assert list(existing.iterdir()) == []
     assert scans["calls"] == 0
@@ -433,10 +399,7 @@ def test_nothing_but_the_executor_writes_under_the_books_root(
         "bookdrop.executor.Executor.file", lambda self, plan: written.append(plan)
     )
     looked_up["answers"]["9780441015610"] = Metadata(publisher="Ace")
-    live_settings = settings.model_copy(update={"dry_run": False})
-    app = TestClient(
-        create_app(live_settings, find=lambda isbn: None, scan=lambda: None)
-    )
+    app = TestClient(create_app(settings, find=lambda isbn: None, scan=lambda: None))
     settings.books_root.chmod(0o555)
     try:
         location = drop(app, tmp_path, metadata=BOOK, version="2.0")
@@ -452,9 +415,9 @@ def test_nothing_but_the_executor_writes_under_the_books_root(
     assert len(written) == 1
 
 
-def test_a_book_that_cannot_be_prepared_is_not_filed(live, settings, tmp_path, scans):
+def test_a_book_that_cannot_be_prepared_is_not_filed(client, settings, tmp_path, scans):
     location = drop(
-        live,
+        client,
         tmp_path,
         metadata=BOOK + "<meta name='cover' content='c'/>",
         manifest="<item id='c' href='c.png' media-type='image/png'/>",
@@ -462,7 +425,7 @@ def test_a_book_that_cannot_be_prepared_is_not_filed(live, settings, tmp_path, s
         version="2.0",
     )
 
-    page = file_it(live, location)
+    page = file_it(client, location)
 
     assert "Not filed: The book could not be prepared for filing:" in page
     assert list(settings.books_root.iterdir()) == []
@@ -483,3 +446,16 @@ def test_a_broken_epub_is_refused_at_upload_saying_why(client, settings):
     assert response.status_code == 422
     assert "The book could not be read: it lacks" in response.text
     assert list((settings.data_dir / "drops").iterdir()) == []
+
+
+def test_a_record_from_an_earlier_release_still_loads(client, settings, tmp_path):
+    import json
+
+    location = drop(client, tmp_path, metadata=BOOK, version="2.0")
+    (record,) = (settings.data_dir / "drops").glob("*/drop.json")
+    saved = json.loads(record.read_text())
+    saved |= {"confirmed": True, "planned": ["Frank Herbert/Dune Messiah/x.epub"]}
+    record.write_text(json.dumps(saved))
+
+    assert "<h1>Dune Messiah</h1>" in client.get(location).text
+    assert "Awaiting confirmation" in client.get("/").text

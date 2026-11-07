@@ -33,11 +33,10 @@ a new file first.
 
 ## Rules that protect the library
 
-- **Dry run is the default, and it must be impossible to bypass by accident.**
-  `BOOKDROP_DRY_RUN` is true unless set to `false`. Every write under the books
-  root goes through a single executor that checks it. No other code opens
-  anything there for writing, and a test holds that line from the moment the
-  executor exists.
+- **One writer under the books root.** Every write there goes through the
+  executor, which never writes over an existing book. No other code opens
+  anything there for writing, and a test holds that line: it runs every page
+  against a read-only books root with the executor replaced.
 - **Nothing DRM-locked enters the library.** A file still encrypted after
   stripping is refused, never filed.
 - **No real book, `.acsm` or Adobe device key enters the repository.** An `.acsm`
