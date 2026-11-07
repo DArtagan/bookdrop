@@ -29,6 +29,12 @@ Made by Will on 2026-11-03, recorded so they are not relitigated:
 - **A dedicated account** for bookdrop's Adobe DRM identity, used by nothing
   else. Will asked for an Adobe ID; see *Adobe identity* for why it is a
   ByteBooks ID.
+- **No login of its own** (Will, 2026-11-07): "Bookdrop does not need its own
+  login at this time. We'll add that scope if the circumstances necessitate it.
+  But presently, as it's only accessible via internal ingress, that's good
+  enough." Anyone who reaches it can file books into the library, so a change
+  to who reaches the internal ingress, such as a second person on the tailnet,
+  is the circumstance that reopens this.
 
 ## Input
 
