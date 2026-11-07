@@ -108,6 +108,13 @@ def _run(adept_dir: Path, tool: str, *args: str) -> None:
     # libgourou rewrites activation.xml the first time it meets a store's licence
     # service, and the deployment mounts the key read-only. A scratch copy per run
     # lets that write succeed; it is fetched again next time, which is harmless.
+    missing = [name for name in KEY_FILES if not (adept_dir / name).is_file()]
+    if missing:
+        raise Refused(
+            f"No Adobe device key is set up, so an .acsm or a DRM-locked book "
+            f"cannot be read ({', '.join(missing)} missing from {adept_dir}). "
+            "A DRM-free EPUB needs none."
+        )
     with tempfile.TemporaryDirectory() as key:
         for name in KEY_FILES:
             shutil.copyfile(adept_dir / name, Path(key) / name)
