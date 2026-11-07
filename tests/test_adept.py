@@ -143,3 +143,15 @@ def test_a_tool_that_hangs_is_refused(tmp_path, out_dir, tools, adept_dir, monke
     acsm.write_text(ACSM)
     with pytest.raises(Refused, match="did not finish within 0.2 seconds"):
         prepare(acsm, out_dir, adept_dir)
+
+
+def test_without_a_device_key_an_acsm_is_refused_saying_so(tmp_path, out_dir):
+    acsm = tmp_path / "URLLink.acsm"
+    acsm.write_text(ACSM)
+    with pytest.raises(Refused, match="No Adobe device key is set up.*device.xml"):
+        prepare(acsm, out_dir, tmp_path / "no-key")
+
+
+def test_without_a_device_key_a_drm_free_epub_is_fine(tmp_path, out_dir):
+    prepared = prepare(make_epub(tmp_path / "b.epub"), out_dir, tmp_path / "no-key")
+    assert prepared.preparation == "It arrived DRM-free."
