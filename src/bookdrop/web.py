@@ -175,18 +175,25 @@ def create_app(
             drops=drops.all_drops(settings.data_dir),
         )
 
+    def origin(request: Request) -> str:
+        """The address the client used. Behind the ingress the scheme arrives in
+        X-Forwarded-Proto: the ingress ends TLS and speaks HTTP to bookdrop."""
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        return f"{scheme}://{request.headers['host']}"
+
     @app.get("/shortcut", response_class=HTMLResponse)
     def shortcut(request: Request) -> HTMLResponse:
-        # The address the phone used, so the steps name the one it can reach.
-        return render("shortcut.html", base=f"https://{request.headers['host']}")
+        return render("shortcut.html", base=origin(request))
 
     @app.post("/drop")
     def drop(request: Request, file: UploadFile) -> Response:
         """Take an upload and lead to its confirmation page.
 
         A browser is redirected there. A client asking for JSON, as the iOS
-        Shortcut does, gets the page's path to open instead, since a Shortcut
-        does not follow a redirect into Safari; or the reason it was refused.
+        Shortcut does, gets the page's full URL to open instead, since a
+        Shortcut does not follow a redirect into Safari; or the reason it was
+        refused. Full, not a path, so the Shortcut opens it as it is rather than
+        joining it to the address, which is easy to build wrong.
         """
         wants_json = "application/json" in request.headers.get("accept", "")
 
@@ -231,7 +238,7 @@ def create_app(
         record.save()
         path = f"/drops/{record.id}"
         if wants_json:
-            return JSONResponse({"path": path}, status_code=201)
+            return JSONResponse({"url": origin(request) + path}, status_code=201)
         return RedirectResponse(path, status_code=303)
 
     @app.get("/drops/{drop_id}", response_class=HTMLResponse)

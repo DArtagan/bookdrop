@@ -221,8 +221,10 @@ steps bookdrop serves at `/shortcut`. Safari on iOS does not implement the Web
 Share Target API, by which an installed site joins the share sheet: MDN's
 compatibility data, 2026-11-02, lists it for Chromium on Android alone. The
 Shortcut posts the shared file to `/drop` asking for JSON, and `/drop` answers
-with the confirmation page's path for the Shortcut to open in Safari, or with
-the reason it refused the file, since a Shortcut does not follow a redirect
-into the browser. A signed Shortcut file can be made only on a Mac, which is
+with the confirmation page's full URL for the Shortcut to open in Safari, or
+with the reason it refused the file, which the Shortcut shows in an alert, since
+a Shortcut does not follow a redirect into the browser. A full URL, not a path:
+joining a path to the address is a Shortcut step easily built wrong, and on the
+first phone it was, opening bookdrop's front page instead. A signed Shortcut file can be made only on a Mac, which is
 why it is built from steps rather than downloaded. No Android share target is
 offered: no phone using bookdrop runs Android.
