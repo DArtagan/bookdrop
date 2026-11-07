@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/DArtagan/bookdrop/compare/v0.6.0...v0.6.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* give the Shortcut the confirmation page's full URL ([#25](https://github.com/DArtagan/bookdrop/issues/25)) ([56e095b](https://github.com/DArtagan/bookdrop/commit/56e095bb0072bc48f9da0a2c9c166cecb5543f47))
+
 ## [0.6.0](https://github.com/DArtagan/bookdrop/compare/v0.5.0...v0.6.0) (2026-11-07)
 
 
