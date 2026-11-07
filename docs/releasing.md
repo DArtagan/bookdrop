@@ -22,8 +22,12 @@ the tag `vX.Y.Z`. The Python strategy reads the package name from
 `pyproject.toml` for itself. Releases are immutable once published, so a tag
 written with the wrong name stays.
 
-Below 1.0, a breaking change bumps the minor version rather than the major, and
-so do `feat` commits; `fix` bumps the patch.
+A breaking change bumps the major version, a `feat` the minor and a `fix` the
+patch. The settings, the `/drop` JSON reply, the drop record on the data volume
+and the library's layout are what a breaking change breaks. A `Release-As: X.Y.Z`
+footer on a commit sets the next version outright; it must be in the commit's
+own message, since a footer in the pull request's body arrives only if GitHub
+has linked the commit to it when release-please runs.
 
 Release PRs are opened by `github-actions`, and GitHub holds CI on them at
 *action required* until someone approves the run from the PR. Approving is
@@ -56,8 +60,8 @@ only the title at merge time counts.
 
 Flux deploys bookdrop from the deployment repository (see *The deployment
 half* in `AGENTS.md`). It polls GHCR, and an `ImagePolicy` with the semver range
-`>=0.1.0 <1.0.0` selects the newest release. Flux Bot then commits the new tag
-into bookdrop's `Deployment` there. Crossing to 1.0 is a deliberate edit of
+`>=0.1.0 <2.0.0` selects the newest release. Flux Bot then commits the new tag
+into bookdrop's `Deployment` there. A major version is a deliberate edit of
 that range.
 
 ## Checking a release
