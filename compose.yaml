@@ -1,14 +1,18 @@
-# An example deployment. Set BOOKS_ROOT to the library Stump reads, and
-# ADEPT_DIR to the device key adept_activate wrote (see docs/design.md); a
-# DRM-free EPUB needs no key.
+# An example deployment; README.md describes every setting.
 #
 #   BOOKS_ROOT=/srv/books ADEPT_DIR=~/.config/bookdrop/adept docker compose up -d
 #
-# Confirming a book writes it into BOOKS_ROOT.
+# Confirming a book writes it into BOOKS_ROOT, which uid 1000 must be able to
+# write. Without ADEPT_DIR, DRM-free books still work.
 services:
   bookdrop:
     image: ghcr.io/dartagan/bookdrop:0.6.1 # x-release-please-version
     restart: unless-stopped
+    environment:
+      # Optional: Stump is asked to scan after each filing.
+      BOOKDROP_STUMP_URL: ${STUMP_URL:-}
+      BOOKDROP_STUMP_API_KEY: ${STUMP_API_KEY:-}
+      BOOKDROP_STUMP_LIBRARY_ID: ${STUMP_LIBRARY_ID:-}
     volumes:
       - ${BOOKS_ROOT:?set BOOKS_ROOT to the books library}:/books
       - ${ADEPT_DIR:-./adept}:/adept:ro
