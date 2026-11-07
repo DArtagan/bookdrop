@@ -470,9 +470,18 @@ def test_a_shortcut_gets_the_confirmation_path(client, settings, tmp_path):
         "/drop", files={"file": ("b.epub", book)}, headers=JSON, follow_redirects=False
     )
     assert response.status_code == 201
-    path = response.json()["path"]
-    assert path.startswith("/drops/")
-    assert "<h1>Dune Messiah</h1>" in client.get(path).text
+    url = response.json()["url"]
+    assert url.startswith("http://testserver/drops/")
+    assert "<h1>Dune Messiah</h1>" in client.get(url).text
+
+
+def test_behind_the_ingress_the_url_is_https(client, tmp_path):
+    book = make_epub(tmp_path / "b.epub", metadata=BOOK, version="2.0").read_bytes()
+    headers = JSON | {"Host": "bookdrop.example", "X-Forwarded-Proto": "https"}
+    response = client.post("/drop", files={"file": ("b.epub", book)}, headers=headers)
+    assert response.json()["url"].startswith("https://bookdrop.example/drops/")
+    page = client.get("/shortcut", headers=headers).text
+    assert "<code>https://bookdrop.example/drop</code>" in page
 
 
 def test_a_shortcut_is_told_why_a_file_was_refused(client, settings):
@@ -491,6 +500,6 @@ def test_a_browser_is_still_redirected(client, tmp_path):
 
 def test_the_shortcut_page_names_the_address_the_phone_used(client):
     page = client.get("/shortcut", headers={"Host": "bookdrop.example"}).text
-    assert "<code>https://bookdrop.example/drop</code>" in page
+    assert "<code>http://bookdrop.example/drop</code>" in page
     assert "<code>application/json</code>" in page
     assert 'href="/shortcut"' in client.get("/").text

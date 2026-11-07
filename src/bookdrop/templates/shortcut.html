@@ -24,11 +24,10 @@ it once in the Shortcuts app.</p>
     </ul>
   </li>
   <li>Add <b>Get Dictionary Value</b>: get the <b>Value</b> for key
-    <code>path</code> in <b>Contents of URL</b>.</li>
+    <code>url</code> in <b>Contents of URL</b>.</li>
   <li>Add <b>If</b>: <b>Dictionary Value</b> <b>has any value</b>.</li>
-  <li>Inside the If, add <b>Text</b> containing <code>{{ base }}</code>
-    followed by the <b>Dictionary Value</b> variable, then
-    <b>Open URLs</b> with that <b>Text</b>.</li>
+  <li>Inside the If, add <b>Open URLs</b> with <b>Dictionary Value</b>. The
+    value is the confirmation page's whole address; open it as it is.</li>
   <li>Under <b>Otherwise</b>, add <b>Get Dictionary Value</b> for key
     <code>error</code> in <b>Contents of URL</b>, then <b>Show Alert</b>
     with it, so a refused file says why.</li>

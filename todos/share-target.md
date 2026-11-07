@@ -8,20 +8,15 @@
 
 ## Where it stands
 
-Built on the `share-target` branch, 2026-11-07: `/drop` answers a client asking
-for JSON with the confirmation page's path, or the refusal, and `/shortcut`
-lists the steps to build the Shortcut, naming the address the phone used.
-Checked in the image that day: a JSON drop of the first Kobo book answered
-`201` with a path whose page was its confirmation screen, and a text file
-`422` with its reason. *Phones* in the design says why it is a Shortcut and
-not a Web Share Target.
+Built and released in 0.6.0, 2026-11-07, and tried on the phone the same day:
 
-## Not yet checked
-
-- Whether *Get Contents of URL* hands the Shortcut a `422`'s body or stops with
-  an error of its own. Either way the file is refused; only the alert differs.
-- Whether Files offers the Shortcut on an `.acsm`, given iOS has no type for it.
-  The Shortcut takes any file, so it should.
+- Files offers the Shortcut on an `.acsm`, and the upload reaches `/drop`.
+- A file bookdrop refuses comes back as an alert with bookdrop's reason.
+- The confirmation page did not open: the Shortcut opened bookdrop's front page,
+  having joined an empty path to the address. `/drop` now answers with the full
+  URL, which the Shortcut opens as it is, and `/shortcut`'s steps say so
+  (branch `shortcut-url`). The phone's Shortcut needs its steps 4 to 6 rebuilt
+  to match.
 
 ## Done when
 
