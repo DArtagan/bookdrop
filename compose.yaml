@@ -7,7 +7,7 @@
 # Confirming a book writes it into BOOKS_ROOT.
 services:
   bookdrop:
-    image: ghcr.io/dartagan/bookdrop:0.4.0 # x-release-please-version
+    image: ghcr.io/dartagan/bookdrop:0.5.0 # x-release-please-version
     restart: unless-stopped
     volumes:
       - ${BOOKS_ROOT:?set BOOKS_ROOT to the books library}:/books

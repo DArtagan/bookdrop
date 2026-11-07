@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/DArtagan/bookdrop/compare/v0.4.0...v0.5.0) (2026-11-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* BOOKDROP_DRY_RUN no longer exists, and bookdrop writes into the books root whenever a book is confirmed. The example compose.yaml mounts it writable.
+
+### Features
+
+* remove dry run ([#20](https://github.com/DArtagan/bookdrop/issues/20)) ([d5ca204](https://github.com/DArtagan/bookdrop/commit/d5ca204f9643e7c7c58230ecb9d1ea412f005a86))
+
 ## [0.4.0](https://github.com/DArtagan/bookdrop/compare/v0.3.1...v0.4.0) (2026-11-05)
 
 
