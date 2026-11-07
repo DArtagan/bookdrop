@@ -225,6 +225,8 @@ with the confirmation page's full URL for the Shortcut to open in Safari, or
 with the reason it refused the file, which the Shortcut shows in an alert, since
 a Shortcut does not follow a redirect into the browser. A full URL, not a path:
 joining a path to the address is a Shortcut step easily built wrong, and on the
-first phone it was, opening bookdrop's front page instead. A signed Shortcut file can be made only on a Mac, which is
+first phone it was, opening bookdrop's front page instead. Built from those steps, the Shortcut was
+checked from the phone on 2026-11-07: an `.acsm` shared from Files opened its
+confirmation page, and a file bookdrop refuses showed its reason. A signed Shortcut file can be made only on a Mac, which is
 why it is built from steps rather than downloaded. No Android share target is
 offered: no phone using bookdrop runs Android.

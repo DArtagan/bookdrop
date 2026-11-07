@@ -11,11 +11,9 @@ name the sections they depend on rather than restating them.
 
 ## In order
 
-Specs are referred to by name, not number, so finishing one renumbers nothing.
-
-| # | spec | what | needs |
-|---|---|---|---|
-| 1 | [share-target](share-target.md) | An installable PWA, so a phone's share sheet sends the download straight in | — |
+Nothing is outstanding. A new spec goes here, in the order the work should be
+done; specs are referred to by name, not number, so finishing one renumbers
+nothing.
 
 ## Writing a spec
 
