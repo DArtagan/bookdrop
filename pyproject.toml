@@ -1,7 +1,7 @@
 [project]
 name = "bookdrop"
 # Written by release-please; see docs/releasing.md.
-version = "0.5.0"
+version = "0.6.0"
 description = "A web drop that files purchased ebooks into a Stump library"
 license = "MIT"
 requires-python = ">=3.15"

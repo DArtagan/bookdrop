@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/DArtagan/bookdrop/compare/v0.5.0...v0.6.0) (2026-11-07)
+
+
+### Features
+
+* share to bookdrop from an iPhone through a Shortcut ([#23](https://github.com/DArtagan/bookdrop/issues/23)) ([94d0b00](https://github.com/DArtagan/bookdrop/commit/94d0b0085c32731a0dadbbbeeaacaee9c839b443))
+
+
+### Documentation
+
+* log remove-dry-run and record that bookdrop needs no login ([#22](https://github.com/DArtagan/bookdrop/issues/22)) ([7942b00](https://github.com/DArtagan/bookdrop/commit/7942b00cbdb16043df07503cb5e82069c93d4bdb))
+
 ## [0.5.0](https://github.com/DArtagan/bookdrop/compare/v0.4.0...v0.5.0) (2026-11-07)
 
 
