@@ -2,20 +2,26 @@
 
 ## Opening prompt
 
-> Read `todos/share-target.md` and *Phones* in `docs/design.md`. Make bookdrop an
-> installable PWA whose Web Share Target accepts an `.acsm` or `.epub`, so
-> sharing a store download lands on the confirmation screen.
+> Read `todos/share-target.md` and *Phones* in `docs/design.md`. bookdrop
+> serves the steps for an iOS Shortcut at `/shortcut`; what remains is building
+> it on the phone and checking it end to end.
 
-## The work
+## Where it stands
 
-- A web app manifest with `share_target` (`method: POST`,
-  `enctype: multipart/form-data`, `files` accepting the two types), and the
-  service worker installability needs.
-- Share targets and service workers need a secure context. The deployment's
-  certificate is from Let's Encrypt (issued 2026-11-03), which phones trust.
-- Web Share Target is supported by Chrome on Android, not by Safari on iOS, as
-  far as was known on 2026-11-03 (unverified). On iOS, a Shortcut that posts the
-  file is the fallback.
+Built on the `share-target` branch, 2026-11-07: `/drop` answers a client asking
+for JSON with the confirmation page's path, or the refusal, and `/shortcut`
+lists the steps to build the Shortcut, naming the address the phone used.
+Checked in the image that day: a JSON drop of the first Kobo book answered
+`201` with a path whose page was its confirmation screen, and a text file
+`422` with its reason. *Phones* in the design says why it is a Shortcut and
+not a Web Share Target.
+
+## Not yet checked
+
+- Whether *Get Contents of URL* hands the Shortcut a `422`'s body or stops with
+  an error of its own. Either way the file is refused; only the alert differs.
+- Whether Files offers the Shortcut on an `.acsm`, given iOS has no type for it.
+  The Shortcut takes any file, so it should.
 
 ## Done when
 

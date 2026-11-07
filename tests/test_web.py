@@ -459,3 +459,38 @@ def test_a_record_from_an_earlier_release_still_loads(client, settings, tmp_path
 
     assert "<h1>Dune Messiah</h1>" in client.get(location).text
     assert "Awaiting confirmation" in client.get("/").text
+
+
+JSON = {"Accept": "application/json"}
+
+
+def test_a_shortcut_gets_the_confirmation_path(client, settings, tmp_path):
+    book = make_epub(tmp_path / "b.epub", metadata=BOOK, version="2.0").read_bytes()
+    response = client.post(
+        "/drop", files={"file": ("b.epub", book)}, headers=JSON, follow_redirects=False
+    )
+    assert response.status_code == 201
+    path = response.json()["path"]
+    assert path.startswith("/drops/")
+    assert "<h1>Dune Messiah</h1>" in client.get(path).text
+
+
+def test_a_shortcut_is_told_why_a_file_was_refused(client, settings):
+    response = client.post(
+        "/drop", files={"file": ("notes.txt", b"plain text")}, headers=JSON
+    )
+    assert response.status_code == 422
+    assert "Only an .acsm, an EPUB or a PDF" in response.json()["error"]
+    assert list((settings.data_dir / "drops").iterdir()) == []
+
+
+def test_a_browser_is_still_redirected(client, tmp_path):
+    location = drop(client, tmp_path)
+    assert location.startswith("/drops/")
+
+
+def test_the_shortcut_page_names_the_address_the_phone_used(client):
+    page = client.get("/shortcut", headers={"Host": "bookdrop.example"}).text
+    assert "<code>https://bookdrop.example/drop</code>" in page
+    assert "<code>application/json</code>" in page
+    assert 'href="/shortcut"' in client.get("/").text

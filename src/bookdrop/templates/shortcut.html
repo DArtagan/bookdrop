@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Share to bookdrop · bookdrop{% endblock %}
+{% block body %}
+<p><a href="/">← bookdrop</a></p>
+<h1>Share to bookdrop from an iPhone</h1>
+<p>Safari on iOS cannot install a site into the share sheet, so a Shortcut does
+it: it sends the shared file to bookdrop and opens its confirmation page. Build
+it once in the Shortcuts app.</p>
+
+<ol>
+  <li>In <b>Shortcuts</b>, tap <b>+</b> and name the new shortcut
+    <b>bookdrop</b>.</li>
+  <li>Tap <b>ⓘ</b>, turn on <b>Show in Share Sheet</b>, and set the share sheet
+    types to <b>Files</b> only. A <i>Receive Files from Share Sheet</i> block
+    appears at the top.</li>
+  <li>Add <b>Get Contents of URL</b>. Set the URL to
+    <code>{{ base }}/drop</code>, then expand it:
+    <ul>
+      <li><b>Method</b>: <code>POST</code></li>
+      <li><b>Headers</b>: add <code>Accept</code> with the value
+        <code>application/json</code></li>
+      <li><b>Request Body</b>: <b>Form</b>; add a field of type
+        <b>File</b>, key <code>file</code>, value <b>Shortcut Input</b></li>
+    </ul>
+  </li>
+  <li>Add <b>Get Dictionary Value</b>: get the <b>Value</b> for key
+    <code>path</code> in <b>Contents of URL</b>.</li>
+  <li>Add <b>If</b>: <b>Dictionary Value</b> <b>has any value</b>.</li>
+  <li>Inside the If, add <b>Text</b> containing <code>{{ base }}</code>
+    followed by the <b>Dictionary Value</b> variable, then
+    <b>Open URLs</b> with that <b>Text</b>.</li>
+  <li>Under <b>Otherwise</b>, add <b>Get Dictionary Value</b> for key
+    <code>error</code> in <b>Contents of URL</b>, then <b>Show Alert</b>
+    with it, so a refused file says why.</li>
+</ol>
+
+<p>To use it, download the store's <code>.acsm</code> or EPUB in Safari, then
+in Safari's downloads or in Files, tap <b>Share</b> and choose
+<b>bookdrop</b>. The phone must reach <code>{{ base }}</code>, on the home
+network or the tailnet, as it does for this page.</p>
+{% endblock %}
