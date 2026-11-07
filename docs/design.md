@@ -206,7 +206,17 @@ logged; the book stays filed, and a scan started from Stump picks it up.
 ## Phones
 
 The internal network is the only way in; the tailnet carries a phone to it from
-anywhere. Phase two makes bookdrop an installable PWA with a Web Share Target,
-so sharing a downloaded `.acsm` lands on the confirmation screen. Share targets
-need a secure context, so this depends on the ingress serving a certificate the
-phone trusts. The deployment's is from Let's Encrypt.
+anywhere. The page works one-handed, and its file picker filters nothing,
+since iOS greys out any file whose extension it has no type for, `.acsm`
+among them.
+
+**Sharing from an iPhone goes through a Shortcut**, built by hand from the
+steps bookdrop serves at `/shortcut`. Safari on iOS does not implement the Web
+Share Target API, by which an installed site joins the share sheet: MDN's
+compatibility data, 2026-11-02, lists it for Chromium on Android alone. The
+Shortcut posts the shared file to `/drop` asking for JSON, and `/drop` answers
+with the confirmation page's path for the Shortcut to open in Safari, or with
+the reason it refused the file, since a Shortcut does not follow a redirect
+into the browser. A signed Shortcut file can be made only on a Mac, which is
+why it is built from steps rather than downloaded. No Android share target is
+offered: no phone using bookdrop runs Android.

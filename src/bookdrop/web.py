@@ -6,7 +6,7 @@ from importlib.metadata import version
 
 import httpx
 from fastapi import FastAPI, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from bookdrop import drops, filing, layout, lookup, metadata, stump
@@ -175,8 +175,27 @@ def create_app(
             drops=drops.all_drops(settings.data_dir),
         )
 
+    @app.get("/shortcut", response_class=HTMLResponse)
+    def shortcut(request: Request) -> HTMLResponse:
+        # The address the phone used, so the steps name the one it can reach.
+        return render("shortcut.html", base=f"https://{request.headers['host']}")
+
     @app.post("/drop")
-    def drop(file: UploadFile) -> Response:
+    def drop(request: Request, file: UploadFile) -> Response:
+        """Take an upload and lead to its confirmation page.
+
+        A browser is redirected there. A client asking for JSON, as the iOS
+        Shortcut does, gets the page's path to open instead, since a Shortcut
+        does not follow a redirect into Safari; or the reason it was refused.
+        """
+        wants_json = "application/json" in request.headers.get("accept", "")
+
+        def refuse(reason: str) -> Response:
+            drops.discard(directory)
+            if wants_json:
+                return JSONResponse({"error": reason}, status_code=422)
+            return render("refused.html", status=422, reason=reason)
+
         directory = drops.new_directory(settings.data_dir)
         upload = directory / "upload"
         with upload.open("wb") as out:
@@ -184,8 +203,7 @@ def create_app(
         try:
             prepared = prepare(upload, directory, settings.adept_dir)
         except Refused as refused:
-            drops.discard(directory)
-            return render("refused.html", status=422, reason=str(refused))
+            return refuse(str(refused))
         for leftover in directory.iterdir():
             if leftover != prepared.book:
                 leftover.unlink()
@@ -196,12 +214,7 @@ def create_app(
             # every page that later shows it.
             metadata.cover(prepared.book)
         except metadata.Unreadable as error:
-            drops.discard(directory)
-            return render(
-                "refused.html",
-                status=422,
-                reason=f"The book could not be read: {error}.",
-            )
+            return refuse(f"The book could not be read: {error}.")
         record = drops.Drop(
             directory=directory,
             uploaded_as=file.filename or "upload",
@@ -216,7 +229,10 @@ def create_app(
         look_up(record)
         canonicalise(record)
         record.save()
-        return RedirectResponse(f"/drops/{record.id}", status_code=303)
+        path = f"/drops/{record.id}"
+        if wants_json:
+            return JSONResponse({"path": path}, status_code=201)
+        return RedirectResponse(path, status_code=303)
 
     @app.get("/drops/{drop_id}", response_class=HTMLResponse)
     def view(drop_id: str) -> HTMLResponse:
