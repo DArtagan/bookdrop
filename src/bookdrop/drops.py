@@ -2,7 +2,7 @@ import json
 import re
 import shutil
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -26,14 +26,13 @@ class Drop:
     # What the last Open Library lookup came to, said to the person.
     lookup: str = ""
     lookup_failed: bool = False
-    # What confirming would write, or has written, each relative to the books root.
-    planned: list[str] = field(default_factory=list)
+    # The files filing wrote, each relative to the books root.
+    written: list[str] = field(default_factory=list)
     # The directory the book was filed into, once it has been.
     filed: str = ""
     # What came of asking Stump to scan, said to the person.
     scan: str = ""
     scan_failed: bool = False
-    confirmed: bool = False
     created: str = ""
 
     @property
@@ -83,7 +82,9 @@ def load(data_dir: Path, drop_id: str) -> Drop | None:
     except FileNotFoundError:
         return None
     record["metadata"] = Metadata.from_dict(record["metadata"])
-    return Drop(directory=directory, **record)
+    # A record saved by an earlier release may hold a field since removed.
+    known = {f.name for f in fields(Drop)}
+    return Drop(directory=directory, **{k: v for k, v in record.items() if k in known})
 
 
 def all_drops(data_dir: Path) -> list[Drop]:

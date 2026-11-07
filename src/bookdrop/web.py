@@ -37,7 +37,7 @@ def create_app(
     """The web app. find(isbn) looks an ISBN up, as lookup.open_library does, and
     scan() asks Stump to scan, as stump.scan does; tests replace both."""
     settings = settings or Settings()
-    executor = Executor(settings.books_root, settings.dry_run)
+    executor = Executor(settings.books_root)
 
     def stump_scan() -> None:
         if not (
@@ -110,16 +110,14 @@ def create_app(
             drop.sources["authors"] = "alias"
 
     def file_book(record: drops.Drop) -> None:
-        """File a confirmed drop, or in dry run record what filing would write.
+        """File a confirmed drop.
 
         Raises FilingError, saying why, when the book cannot be filed.
         """
         plan = filing.plan(record)
-        record.planned = [str(plan.directory / name) for name in plan.files]
-        if settings.dry_run:
-            return
         executor.file(plan)
         record.filed = str(plan.directory)
+        record.written = [str(plan.directory / name) for name in plan.files]
         # The library has the book now; the drop keeps only its record.
         record.book.unlink()
 
@@ -158,7 +156,6 @@ def create_app(
             drop=drop,
             meta=drop.metadata,
             destination=destination,
-            dry_run=settings.dry_run,
             exists=not drop.filed
             and (settings.books_root / destination.parent).exists(),
             has_cover=drop.book.exists() and metadata.cover(drop.book) is not None,
@@ -167,15 +164,14 @@ def create_app(
         )
 
     @app.get("/healthz")
-    def healthz() -> dict[str, str | bool]:
-        return {"status": "ok", "dry_run": settings.dry_run}
+    def healthz() -> dict[str, str]:
+        return {"status": "ok"}
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> HTMLResponse:
         return render(
             "index.html",
             version=version("bookdrop"),
-            dry_run=settings.dry_run,
             drops=drops.all_drops(settings.data_dir),
         )
 
@@ -255,9 +251,7 @@ def create_app(
             look_up(record)
         canonicalise(record)
         reason = ""
-        record.confirmed = submitted("action") == "confirm"
-        record.planned = []
-        if record.confirmed:
+        if submitted("action") == "confirm":
             try:
                 file_book(record)
             except FilingError as error:
@@ -268,11 +262,9 @@ def create_app(
                     error,
                     exc_info=error.__cause__ is not None,
                 )
-                record.confirmed = False
                 reason = str(error)
             else:
-                if record.filed:
-                    ask_stump(record)
+                ask_stump(record)
         record.save()
         return show(record, reason)
 

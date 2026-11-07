@@ -4,10 +4,6 @@ from pathlib import Path
 from bookdrop.filing import FilingError, Plan
 
 
-class DryRun(Exception):
-    """Filing was asked for while dry run is on."""
-
-
 class Exists(FilingError):
     """A book is already where this one would go."""
 
@@ -16,9 +12,8 @@ class Executor:
     """The one writer under the books root. Nothing else opens a path there for
     writing; a test holds that line."""
 
-    def __init__(self, books_root: Path, dry_run: bool):
+    def __init__(self, books_root: Path):
         self.books_root = books_root
-        self.dry_run = dry_run
 
     def file(self, plan: Plan) -> Path:
         """Write the plan's directory and files, never over anything that exists.
@@ -28,8 +23,6 @@ class Executor:
         removed, empty parents included. Raises FilingError when the library
         refuses the write or a book is already there.
         """
-        if self.dry_run:
-            raise DryRun("Dry run is on, so nothing is written to the library.")
         target = self.books_root / plan.directory
         parents: list[Path] = []
         made_target = False

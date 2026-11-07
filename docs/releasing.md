@@ -60,10 +60,6 @@ half* in `AGENTS.md`). It polls GHCR, and an `ImagePolicy` with the semver range
 into bookdrop's `Deployment` there. Crossing to 1.0 is a deliberate edit of
 that range.
 
-Dry run or live is a property of the deployment, not of a release. Turning
-filing on means setting `BOOKDROP_DRY_RUN` to `"false"` **and** making the
-books mount writable, together, in the deployment repository.
-
 ## Checking a release
 
 The tag, the image and the source should all name the same commit:
@@ -74,4 +70,4 @@ skopeo inspect docker://ghcr.io/dartagan/bookdrop:X.Y.Z \
   | jq -r '.Labels["org.opencontainers.image.revision"]'
 ```
 
-The running pod reports its version on `/` and the mode it is in on `/healthz`.
+The running pod reports its version on `/`.

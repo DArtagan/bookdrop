@@ -17,16 +17,12 @@
 
 {% if drop.filed %}
 <p class="note">Filed to <code>{{ drop.filed }}</code>:</p>
-<ul>{% for path in drop.planned %}<li><code>{{ path.rsplit("/", 1)[-1] }}</code></li>{% endfor %}</ul>
+<ul>{% for path in drop.written %}<li><code>{{ path.rsplit("/", 1)[-1] }}</code></li>{% endfor %}</ul>
 <p class="{{ 'warn' if drop.scan_failed else 'note' }}">{{ drop.scan }}</p>
 {% else %}
 <p>Files to <code>{{ destination }}</code></p>
 {% if problem %}<p class="warn">Not filed: {{ problem }}</p>{% endif %}
 {% if exists %}<p class="warn">A book is already at this path. It will not be overwritten.</p>{% endif %}
-{% if drop.confirmed and dry_run %}
-<p class="note">Confirmed. Dry run is on, so nothing was written; filing would write:</p>
-<ul>{% for path in drop.planned %}<li><code>{{ path }}</code></li>{% endfor %}</ul>
-{% endif %}
 
 <form id="edit" method="post" action="/drops/{{ drop.id }}">
   {{ field("title", "Title", meta.title) }}
@@ -45,7 +41,7 @@
   {{ field("genres", "Genres, one a line", meta.genres | join("\n"), multiline=True) }}
   <div class="row">
     <button name="action" value="update">Update path</button>
-    <button class="primary" name="action" value="confirm">{{ "Confirm" if dry_run else "File it" }}</button>
+    <button class="primary" name="action" value="confirm">File it</button>
   </div>
 </form>
 {% endif %}

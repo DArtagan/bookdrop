@@ -152,8 +152,7 @@ shown on the confirmation screen, never overwritten.
 
 ## Filing
 
-Confirming files the book; in dry run the page lists the files filing would
-write instead. A filed book's directory holds:
+Confirming files the book. A filed book's directory holds:
 
 - **The book**, its OPF rewritten with the confirmed metadata. Only the fields
   bookdrop owns are replaced. The rest of the OPF, rights, accessibility, the
@@ -195,11 +194,11 @@ logged; the book stays filed, and a scan started from Stump picks it up.
 
 ## Rules that protect the library
 
-- **Dry run is the default.** `BOOKDROP_DRY_RUN` is true unless set to
-  `false`. Every write under the library root goes through a single executor
-  that checks it, and the deployment mounts the library read-only while dry run
-  is on. A test runs every page against a read-only books root with the
-  executor replaced, so any other writer there fails it.
+- **One writer under the library root.** Every write there goes through the
+  executor, and filing is reached only by confirming. A test runs every page
+  against a read-only books root with the executor replaced, so any other
+  writer there fails it. The confirmation screen is the gate a person passes;
+  bookdrop has no mode that writes nothing.
 - **No real book, `.acsm` or device key enters the repository.** An `.acsm`
   carries a purchase token and the device key is an account credential. Tests
   use synthetic EPUBs, and stand-ins for libgourou's tools.
