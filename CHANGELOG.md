@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0](https://github.com/DArtagan/bookdrop/compare/v0.6.1...v1.0.0) (2026-11-08)
+
+
+### Bug Fixes
+
+* refuse an .acsm plainly when no device key is set up ([47c7a40](https://github.com/DArtagan/bookdrop/commit/47c7a4085aeb091593758ef43c766e0ff326f4ce))
+
+
+### Documentation
+
+* write the README for someone running bookdrop who is not its author ([47c7a40](https://github.com/DArtagan/bookdrop/commit/47c7a4085aeb091593758ef43c766e0ff326f4ce))
+
+
+### Miscellaneous Chores
+
+* declare bookdrop stable at 1.0 ([#30](https://github.com/DArtagan/bookdrop/issues/30)) ([63e3e3d](https://github.com/DArtagan/bookdrop/commit/63e3e3dc2159fb138081d1a6e4258a6933d4cecb))
+
 ## [0.6.1](https://github.com/DArtagan/bookdrop/compare/v0.6.0...v0.6.1) (2026-11-07)
 
 
