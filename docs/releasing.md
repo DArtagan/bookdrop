@@ -56,8 +56,8 @@ only the title at merge time counts.
 
 Flux deploys bookdrop from the deployment repository (see *The deployment
 half* in `AGENTS.md`). It polls GHCR, and an `ImagePolicy` with the semver range
-`>=0.1.0 <1.0.0` selects the newest release. Flux Bot then commits the new tag
-into bookdrop's `Deployment` there. Crossing to 1.0 is a deliberate edit of
+`>=0.1.0 <2.0.0` selects the newest release. Flux Bot then commits the new tag
+into bookdrop's `Deployment` there. A major version is a deliberate edit of
 that range.
 
 ## Checking a release
